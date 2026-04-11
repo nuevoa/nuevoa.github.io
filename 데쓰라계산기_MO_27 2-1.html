@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<title>데쓰라 계산기</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo','Helvetica Neue',sans-serif;font-size:16px;background:#f5f4f0;color:#1a1a1a;}
+input,select,button{font-family:inherit;font-size:16px;}
+
+.root{min-height:100vh;background:#f5f4f0;}
+.topbar{background:#fff;border-bottom:3px solid #d97706;padding:16px 16px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.topbar h1{font-size:22px;font-weight:800;color:#111;letter-spacing:-0.02em;}
+.topbar p{font-size:11px;color:#aaa;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:2px;}
+.tab-bar{display:flex;background:#fff;border-bottom:1px solid #eee;position:sticky;top:64px;z-index:9;}
+.tab{flex:1;padding:14px 0;font-size:15px;font-weight:600;color:#bbb;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;}
+.tab.active{color:#d97706;border-bottom:3px solid #d97706;}
+
+.body{padding:14px 14px 100px;max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:12px;}
+
+.card{background:#fff;border-radius:14px;border:1px solid #e8e4dc;overflow:hidden;}
+.card-head{padding:12px 14px;background:#faf9f6;border-bottom:1px solid #f0ece4;display:flex;align-items:center;justify-content:space-between;}
+.card-head-title{font-size:13px;font-weight:700;color:#888;letter-spacing:0.03em;text-transform:uppercase;}
+
+.inp{border:1px solid #e0ddd6;border-radius:10px;padding:12px 13px;font-size:16px;color:#1a1a1a;background:#fff;outline:none;width:100%;-webkit-appearance:none;}
+.inp:focus{border-color:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,0.12);}
+
+.select-grade{border:1px solid #ddd;border-radius:10px;padding:11px 8px;font-size:16px;font-weight:700;color:#d97706;background:#fff;cursor:pointer;width:82px;flex-shrink:0;-webkit-appearance:none;text-align:center;}
+
+.btn-orange{background:#d97706;color:#fff;border:none;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;min-height:46px;}
+.btn-ghost{background:none;border:1px solid #e0ddd6;border-radius:10px;color:#888;padding:12px 16px;font-size:15px;cursor:pointer;min-height:46px;}
+.btn-rem{background:none;border:1px solid #e0ddd6;border-radius:10px;color:#ccc;width:40px;height:40px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px;}
+.info-field{display:flex;flex-direction:column;gap:5px;}
+.info-label{font-size:12px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;}
+
+.w-card{background:#fff;border-radius:14px;border:1px solid #e8e4dc;overflow:hidden;}
+.w-head{padding:10px 12px;background:#faf9f6;border-bottom:1px solid #f0ece4;display:flex;align-items:center;gap:8px;}
+.w-num{font-size:14px;font-weight:700;color:#d97706;min-width:18px;}
+.w-body{padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.w-field{display:flex;flex-direction:column;gap:5px;}
+.w-label{font-size:12px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;}
+.w-foot{background:#faf9f6;border-top:1px solid #f0ece4;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;}
+.foot-note{font-size:12px;color:#bbb;}
+.foot-total{font-size:17px;font-weight:700;color:#d97706;}
+
+.add-btn{width:100%;background:none;border:2px dashed #d5d0c8;border-radius:12px;color:#bbb;padding:16px;font-size:15px;cursor:pointer;min-height:54px;}
+
+.summary-box{background:#fff;border-radius:14px;border:1px solid #e8e4dc;padding:16px 14px;}
+.sum-row{display:flex;justify-content:space-between;padding:6px 0;font-size:15px;}
+.sum-label{color:#999;}
+.sum-val{color:#444;font-weight:500;}
+.divider{border-top:1px solid #f0ece4;margin:10px 0;}
+.grand-row{display:flex;justify-content:space-between;align-items:center;padding-top:4px;}
+.grand-label{font-size:16px;font-weight:700;color:#111;}
+.grand-val{font-size:24px;font-weight:800;color:#d97706;}
+
+.share-btn{background:#fff5f5;border:1px solid #fcc;border-radius:12px;color:#c53030;padding:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;}
+
+.site-item{display:flex;align-items:center;justify-content:space-between;padding:14px;border-bottom:1px solid #f5f2ed;cursor:pointer;min-height:64px;}
+.site-item:last-child{border-bottom:none;}
+.site-item:active{background:#faf9f6;}
+.site-name{font-size:16px;font-weight:600;color:#222;}
+.site-meta{font-size:12px;color:#aaa;margin-top:3px;}
+.badge{font-size:12px;background:#fef3c7;color:#92400e;border-radius:8px;padding:4px 10px;font-weight:600;white-space:nowrap;}
+
+.modal-overlay{background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;min-height:500px;padding:0;}
+.modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 16px 40px;}
+.modal-title{font-size:17px;font-weight:700;color:#111;margin-bottom:14px;}
+
+.floating-save{position:fixed;bottom:20px;right:20px;z-index:50;}
+.float-btn{width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:transform 0.2s;font-weight:bold;background:#16a34a;color:#fff;}
+.float-btn:active{transform:scale(0.95);}
+
+.print-preview{background:#fff;border:1px solid #e8e4dc;border-radius:10px;padding:16px;font-size:13px;line-height:1.8;}
+.print-head{font-size:19px;font-weight:800;color:#111;margin-bottom:4px;}
+.print-sub{font-size:14px;color:#999;margin-bottom:14px;}
+.print-table{width:100%;border-collapse:collapse;font-size:15px;table-layout:fixed;}
+.print-table th{background:#f5f4f0;padding:10px 10px;text-align:left;font-weight:600;color:#555;font-size:14px;}
+.print-table td{padding:10px 10px;border-bottom:1px solid #f0ece4;color:#333;font-size:15px;}
+.print-total-row td{font-weight:700;color:#d97706;border-top:2px solid #e8e4dc;}
+
+.weekend-tag{display:inline-block;font-size:11px;color:#e74c3c;font-weight:600;margin-left:4px;}
+</style>
+</head>
+<body>
+<div class="root" id="root">
+  <div class="topbar">
+    <div>
+      <p>인테리어 목수 v27</p>
+      <h1>데쓰라 계산기</h1>
+    </div>
+    <button class="btn-orange" id="btn-new-calc" style="font-size:14px;padding:10px 14px;">+ 새 현장</button>
+  </div>
+  <div class="tab-bar">
+    <button class="tab active" data-tab="calc">계산</button>
+    <button class="tab" data-tab="sites">현장 목록</button>
+  </div>
+  <div id="tab-calc" class="body"></div>
+  <div id="tab-sites" class="body" style="display:none;"></div>
+</div>
+
+<div id="modal-container" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;overflow-y:auto;"></div>
+
+<div class="floating-save">
+  <button class="float-btn" id="floating-save-btn" title="저장">💾</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+// ========== 상수 정의 ==========
+const GRADES = ["반장", "기공", "중목"];
+const DEF = { 반장: 420000, 기공: 300000, 중목: 300000 };
+const MEAL = 12000;
+const SK = 'dessura_v3';
+const PRENAMES = ['김정현', '백종민', '심병철'];
+const NAMEMAPPING = { '김정현': '반장', '백종민': '기공', '심병철': '기공' };
+const SITETYPES = ['아파트', '상가'];
+const GAS_DEPLOYMENT_ID = 'AKfycbxoPmU8e6xNi_cCpZtzkhrDkIdvRF1X8LXfvSDpqWmx8c-tSkcVy-ky2QZlBhgq3msG';
+
+// ========== 유틸 함수 ==========
+let nid = 200;
+const uid = () => nid++;
+
+function fmt(n) {
+  return (!n && n !== 0) ? '' : Number(n).toLocaleString('ko-KR');
+}
+
+function parse(s) {
+  return parseInt(String(s).replace(/,/g, ''), 10) || 0;
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// 날짜 문자열을 Date 객체로 변환
+function dateFromStr(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// 두 날짜 사이의 평일만 계산 (주말 제외)
+function countWeekdays(start, end) {
+  if (!start || !end) return 0;
+  const s = dateFromStr(start);
+  const e = dateFromStr(end);
+  let count = 0;
+  for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) count++;
+  }
+  return count;
+}
+
+// 두 날짜 사이의 전체 일수
+function countDays(start, end) {
+  if (!start || !end) return 0;
+  const s = dateFromStr(start);
+  const e = dateFromStr(end);
+  return Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+// ========== 계산 함수 ==========
+function calcW(w) {
+  const days = Math.max(1, w.days || 1);
+  const mealDays = Math.max(0, w.mealDays || 0);
+  const mealPerDay = w.mealPrice || MEAL;
+  const extraMeals = w.meals ? w.meals.reduce((s, m) => s + (m.amount || 0), 0) : 0;
+  return {
+    days,
+    mealDays,
+    labor: w.unitPrice * days,
+    meal: mealPerDay * mealDays,
+    extraMeals: extraMeals,
+    total: w.unitPrice * days + mealPerDay * mealDays + extraMeals
+  };
+}
+
+// ========== 데이터 관리 ==========
+let sites = [];
+let curId = null;
+
+function loadSites() {
+  try {
+    const d = localStorage.getItem(SK);
+    if (d) sites = JSON.parse(d);
+  } catch (e) { }
+  if (!sites.length) newSite();
+}
+
+function saveSites() {
+  try {
+    localStorage.setItem(SK, JSON.stringify(sites));
+  } catch (e) { }
+}
+
+function getSite() {
+  return sites.find(s => s.id === curId);
+}
+
+function newSite() {
+  const s = {
+    id: uid(),
+    name: '',
+    siteType: '아파트',
+    manager: '',
+    startDate: today(),
+    endDate: today(),
+    workers: [{
+      id: uid(),
+      name: '김정현',
+      grade: '반장',
+      unitPrice: 420000,
+      days: 1,
+      mealDays: 0,
+      mealPrice: 12000,
+      meals: []
+    }],
+    extras: [{ id: uid(), label: '', amount: 0 }],
+    taxRate: 0
+  };
+  sites.unshift(s);
+  curId = s.id;
+  saveSites();
+}
+
+// ========== 탭 전환 ==========
+let activeTab = 'calc';
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('tab-calc').style.display = tab === 'calc' ? 'flex' : 'none';
+  document.getElementById('tab-sites').style.display = tab === 'sites' ? 'flex' : 'none';
+  render();
+}
+
+// ========== 렌더링: 계산 탭 ==========
+function renderCalc() {
+  const body = document.getElementById('tab-calc');
+  let site = getSite();
+  
+  // site가 없으면 자동으로 새 현장 생성
+  if (!site) {
+    newSite();
+    site = getSite();
+  }
+
+  // 주말 제외 일수 계산
+  const weekdayCount = site.siteType === '아파트' ? countWeekdays(site.startDate, site.endDate) : countDays(site.startDate, site.endDate);
+  const totalDayCount = countDays(site.startDate, site.endDate);
+  const weekendCount = totalDayCount - weekdayCount;
+
+  const wt = site.workers.reduce((a, w) => {
+    const c = calcW(w);
+    return { labor: a.labor + c.labor, meal: a.meal + c.meal, extraMeals: a.extraMeals + c.extraMeals, sub: a.sub + c.total };
+  }, { labor: 0, meal: 0, extraMeals: 0, sub: 0 });
+  
+  const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
+  const grand = wt.sub + et;
+  const tax = site.taxRate ? Math.round(grand * site.taxRate) : 0;
+  const afterTax = grand - tax;
+
+  let h = '';
+
+  // 현장 정보
+  h += `<div class="card">
+    <div class="card-head"><span class="card-head-title">현장 정보</span></div>
+    <div class="info-grid" style="grid-template-columns:auto 1fr;gap:8px;">
+      <div class="info-field">
+        <span class="info-label">현장 타입</span>
+        <select class="inp" id="f-siteType" style="padding:12px 8px;width:auto;min-width:80px;">
+          ${SITETYPES.map(t => `<option value="${t}"${site.siteType === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="info-field">
+        <span class="info-label">현장명 *필수</span>
+        <input class="inp" id="f-name" value="${site.name}" placeholder="현장명" style="font-size:16px;font-weight:600;padding:12px 13px;border:2px solid #d97706;" />
+      </div>
+    </div>
+    <div style="padding:10px 12px;${site.siteType === '아파트' ? 'background:#fff9e6;' : 'background:#e6f4ff;'}border-top:1px solid #f0ece4;">
+      ${site.siteType === '아파트' ? `<span style="font-size:12px;color:#92400e;font-weight:600;">순수 시공일: <strong>${weekdayCount}일</strong> (주말 ${weekendCount}일 제외)</span>` : `<span style="font-size:12px;color:#0066cc;font-weight:600;">전체 기간: <strong>${totalDayCount}일</strong> (주말 포함)</span>`}
+    </div>
+    <div class="info-grid" style="grid-template-columns:1fr 1fr 0.5fr;padding:12px 14px;border-top:1px solid #f0ece4;gap:8px;">
+      <div class="info-field">
+        <span class="info-label">시작일</span>
+        <input class="inp" type="date" id="f-startDate" value="${site.startDate || ''}" />
+      </div>
+      <div class="info-field">
+        <span class="info-label">종료일</span>
+        <input class="inp" type="date" id="f-endDate" value="${site.endDate || ''}" />
+      </div>
+      <div class="info-field">
+        <span class="info-label">세금</span>
+        <select class="inp" id="f-taxRate" style="padding:12px 6px;width:100%;font-size:14px;">
+          <option value="0"${site.taxRate === 0 ? 'selected' : ''}>없음</option>
+          <option value="0.033"${site.taxRate === 0.033 ? 'selected' : ''}>3.3%</option>
+          <option value="0.042"${site.taxRate === 0.042 ? 'selected' : ''}>4.2%</option>
+        </select>
+      </div>
+    </div>
+  </div>`;
+
+  // 인원 카드
+  h += `<div style="display:flex;flex-direction:column;gap:10px;">`;
+  site.workers.forEach((w, idx) => {
+    const c = calcW(w);
+    h += `<div class="w-card">
+      <div class="w-head">
+        <span class="w-num">${idx + 1}</span>
+        <select class="select-grade" data-wid="${w.id}" data-field="grade">
+          ${GRADES.map(g => `<option value="${g}"${w.grade === g ? ' selected' : ''}>${g}</option>`).join('')}
+        </select>
+        <select class="inp" data-wid="${w.id}" data-field="name" style="flex:1;min-width:0;padding:12px 13px;">
+          <option value="">선택하기</option>
+          ${PRENAMES.map(p => `<option value="${p}"${w.name === p ? 'selected' : ''}>${p}</option>`).join('')}
+          <option value="custom"${!PRENAMES.includes(w.name) && w.name ? 'selected' : ''}>직접 기재</option>
+        </select>
+        <button class="btn-rem" data-rem="${w.id}">×</button>
+      </div>
+      ${!PRENAMES.includes(w.name) && w.name ? `<div style="padding:8px 12px;border-bottom:1px solid #f0ece4;display:flex;gap:6px;">
+        <input class="inp" data-wid="${w.id}" data-field="name-custom" value="${w.name}" placeholder="성명 입력" style="flex:1;min-width:0;" />
+      </div>` : '<div data-field="name-custom" style="display:none;"></div>'}
+      <div class="w-body">
+        <div class="w-field">
+          <span class="w-label">단가 (원)</span>
+          <div style="display:flex;gap:6px;">
+            <select class="inp" data-wid="${w.id}" data-field="unitPrice" style="padding:11px 13px;flex:1;">
+              ${w.grade === '반장' ? Array.from({ length: 3 }, (v, i) => { const p = 420000 - i * 10000; return `<option value="${p}"${w.unitPrice === p ? 'selected' : ''}>${fmt(p)}</option>`; }).join('') :
+                w.grade === '기공' ? Array.from({ length: 6 }, (v, i) => { const p = 350000 - i * 10000; return `<option value="${p}"${w.unitPrice === p ? 'selected' : ''}>${fmt(p)}</option>`; }).join('') :
+                w.grade === '중목' ? Array.from({ length: 6 }, (v, i) => { const p = 290000 - i * 10000; return `<option value="${p}"${w.unitPrice === p ? 'selected' : ''}>${fmt(p)}</option>`; }).join('') : ''}
+              <option value="custom"${![420000, 410000, 400000, 350000, 340000, 330000, 320000, 310000, 300000, 290000, 280000, 270000, 260000, 250000].includes(w.unitPrice) ? 'selected' : ''}>직접기재</option>
+            </select>
+            ${![420000, 410000, 400000, 350000, 340000, 330000, 320000, 310000, 300000, 290000, 280000, 270000, 260000, 250000].includes(w.unitPrice) ? `<input class="inp" data-wid="${w.id}" data-field="unitPrice-custom" value="${fmt(w.unitPrice)}" placeholder="금액" style="width:100px;padding:11px 13px;" inputmode="numeric" />` : '<div style="display:none;" data-field="unitPrice-custom"></div>'}
+          </div>
+        </div>
+        <div class="w-field">
+          <span class="w-label">시공일수</span>
+          <select class="inp" data-wid="${w.id}" data-field="days" style="padding:11px 13px;">
+            ${Array.from({ length: 30 }, (v, i) => `<option value="${i + 1}"${w.days === (i + 1) ? 'selected' : ''}>${i + 1}일</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="w-body" style="border-top:1px solid #f0ece4;padding-top:12px;">
+        <div class="w-field">
+          <span class="w-label">식대 (원/일)</span>
+          <select class="inp" data-wid="${w.id}" data-field="mealPrice" style="padding:11px 13px;">
+            ${Array.from({ length: 7 }, (v, i) => { const p = 9000 + i * 1000; return `<option value="${p}"${(w.mealPrice || 12000) === p ? 'selected' : ''}>${fmt(p)}</option>`; }).join('')}
+          </select>
+        </div>
+        <div class="w-field">
+          <span class="w-label">식대 지급일수</span>
+          <select class="inp" data-wid="${w.id}" data-field="mealDays" style="padding:11px 13px;">
+            ${Array.from({ length: 31 }, (v, i) => `<option value="${i}"${w.mealDays === i ? 'selected' : ''}>${i}일</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="padding:10px 12px;border-top:1px solid #f0ece4;background:#f9f8f6;">
+        <div style="font-size:13px;color:#333;font-weight:600;margin-bottom:8px;">📊 임금 계산</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px;color:#666;margin-bottom:2px;">임금</div>
+            <div style="font-size:12px;color:#555;font-weight:500;">${fmt(w.unitPrice)} × ${w.days}일 = <strong style="color:#d97706;">${fmt(c.labor)}</strong></div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:#666;margin-bottom:2px;">식대</div>
+            <div style="font-size:12px;color:#555;font-weight:500;">${fmt(w.mealPrice || 12000)} × ${w.mealDays}일 = <strong style="color:#d97706;">${fmt((w.mealPrice || 12000) * w.mealDays)}</strong></div>
+          </div>
+        </div>
+        <div style="border-top:1px solid #e0ddd6;padding-top:8px;font-size:11px;color:#666;">
+          ${site.taxRate > 0 ? `
+            <div style="margin-bottom:4px;">세후: (${fmt(c.labor)} + ${fmt((w.mealPrice || 12000) * w.mealDays)}) × ${(1 - site.taxRate).toFixed(4)} = <strong style="color:#27ae60;">${fmt(Math.round(c.total * (1 - site.taxRate)))}</strong></div>
+            <div>세전: (${fmt(c.labor)} + ${fmt((w.mealPrice || 12000) * w.mealDays)}) = <strong style="color:#d97706;">${fmt(c.total)}</strong></div>
+          ` : `
+            <div>총액: (${fmt(c.labor)} + ${fmt((w.mealPrice || 12000) * w.mealDays)}) = <strong style="color:#d97706;">${fmt(c.total)}</strong></div>
+          `}
+        </div>
+      </div>
+      <div style="padding:10px 12px;border-top:1px solid #f0ece4;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" class="meal-toggle" data-wid="${w.id}" ${w.meals && w.meals.length > 0 ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;" />
+          <span style="font-size:12px;color:#333;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">추가 식대</span>
+        </label>
+        <div class="meals-container" data-wid="${w.id}" style="display:${w.meals && w.meals.length > 0 ? 'block' : 'none'};margin-top:8px;">
+          ${w.meals && w.meals.length > 0 ? w.meals.map(m => `
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <input class="inp" data-wid="${w.id}" data-mid="${m.id}" data-field="label" value="${m.label}" placeholder="항목명" style="width:70px;font-size:14px;padding:8px 10px;" />
+              <input class="inp" data-wid="${w.id}" data-mid="${m.id}" data-field="amount" value="${fmt(m.amount)}" style="flex:1;font-size:14px;padding:8px 10px;text-align:right;" inputmode="numeric" />
+              <span style="font-size:12px;color:#aaa;flex-shrink:0;">원</span>
+              <button class="btn-rem" data-wmrem="${w.id}-${m.id}" style="width:32px;height:32px;font-size:18px;">×</button>
+            </div>
+          `).join('') : ''}
+          <button class="btn-ghost" data-add-meal="${w.id}" style="width:100%;margin-top:4px;padding:8px 12px;font-size:13px;">+ 항목 추가</button>
+        </div>
+      </div>
+      <div class="w-foot">
+        <span class="foot-note">임금 ${fmt(c.labor)} · 식대 ${fmt(c.meal + c.extraMeals)}</span>
+        <span class="foot-total">${fmt(c.total)} 원</span>
+      </div>
+    </div>`;
+  });
+  h += `</div>`;
+
+  h += `<button class="add-btn" id="btn-add-worker">+ 인원 추가</button>`;
+
+  // 합계
+  h += `<div class="summary-box">
+    <p style="font-size:15px;font-weight:700;color:#333;margin-bottom:10px;">합계</p>
+    <div class="sum-row"><span class="sum-label">임금</span><span class="sum-val">${fmt(wt.labor)} 원</span></div>
+    <div class="sum-row"><span class="sum-label">식대</span><span class="sum-val">${fmt(wt.meal + wt.extraMeals)} 원</span></div>
+    <div class="divider"></div>
+    <p style="font-size:13px;font-weight:600;color:#aaa;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">기타</p>`;
+
+  site.extras.forEach(e => {
+    h += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <input class="inp" data-eid="${e.id}" data-field="label" value="${e.label}" placeholder="항목명" style="flex:1;min-width:0;" />
+      <input class="inp" data-eid="${e.id}" data-field="amount" value="${fmt(e.amount)}" style="width:100px;text-align:right;" inputmode="numeric" />
+      <span style="font-size:14px;color:#aaa;flex-shrink:0;">원</span>
+      <button class="btn-rem" data-erem="${e.id}">×</button>
+    </div>`;
+  });
+
+  h += `<button class="btn-ghost" id="btn-add-extra" style="width:100%;margin-bottom:10px;">+ 항목 추가</button>
+    <div class="divider"></div>`;
+  
+  h += `<div class="grand-row">
+    <span class="grand-label">소계</span>
+    <span class="grand-val">${fmt(grand)} 원</span>
+  </div>`;
+  
+  if (site.taxRate > 0) {
+    h += `<div class="sum-row" style="color:#e74c3c;margin-top:8px;"><span class="sum-label">세금 (${(site.taxRate * 100).toFixed(1)}%)</span><span class="sum-val">-${fmt(tax)} 원</span></div>
+      <div class="grand-row">
+        <span class="grand-label">실수령액</span>
+        <span class="grand-val" style="color:#27ae60;">${fmt(afterTax)} 원</span>
+      </div>`;
+  }
+  h += `</div>`;
+
+  h += `<div style="margin-top:16px;">
+    <h2 style="text-align:center;font-size:15px;font-weight:700;color:#aaa;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">결과</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-orange" id="btn-share" style="flex:1;min-width:0;background:#e8f4f8;border:1px solid #b3d9e8;color:#0066cc;font-size:14px;padding:13px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📋 텍스트</button>
+      <button class="btn-orange" id="btn-share-image" style="flex:1;min-width:0;background:#fff;border:1px solid #e0ddd6;color:#555;font-size:14px;padding:13px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🖼️ 이미지</button>
+      <button class="btn-orange" id="btn-save-to-sheets" style="flex:1;min-width:0;background:#4285f4;font-size:14px;padding:13px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📊 구글백업</button>
+    </div>
+  </div>`;
+
+  body.innerHTML = h;
+
+  // 바인딩
+  const bindInput = (id, field) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      site[field] = el.value;
+    });
+    el.addEventListener('change', () => {
+      if (field === 'taxRate') {
+        site[field] = parseFloat(el.value);
+        renderCalc();
+      } else if (field === 'siteType') {
+        site[field] = el.value;
+        // 현장 타입 변경 시 자동으로 모든 인원의 시공일수와 식대 지급일수 업데이트
+        const autoDays = site.siteType === '아파트' ? countWeekdays(site.startDate, site.endDate) : countDays(site.startDate, site.endDate);
+        site.workers = site.workers.map(w => ({ ...w, days: Math.max(1, autoDays), mealDays: Math.max(1, autoDays) }));
+        renderCalc();
+      } else if (field === 'startDate' || field === 'endDate') {
+        site[field] = el.value;
+        // 날짜 변경 시 자동으로 모든 인원의 시공일수와 식대 지급일수 업데이트
+        const autoDays = site.siteType === '아파트' ? countWeekdays(site.startDate, site.endDate) : countDays(site.startDate, site.endDate);
+        site.workers = site.workers.map(w => ({ ...w, days: Math.max(1, autoDays), mealDays: Math.max(1, autoDays) }));
+        renderCalc();
+      } else {
+        site[field] = el.value;
+      }
+    });
+  };
+  bindInput('f-name', 'name');
+  bindInput('f-siteType', 'siteType');
+  bindInput('f-startDate', 'startDate');
+  bindInput('f-endDate', 'endDate');
+  bindInput('f-taxRate', 'taxRate');
+
+  // Worker 바인딩
+  body.querySelectorAll('[data-wid]').forEach(el => {
+    el.addEventListener('change', () => {
+      const wid = +el.dataset.wid;
+      const field = el.dataset.field;
+      const mid = el.dataset.mid;
+
+      site.workers = site.workers.map(w => {
+        if (w.id !== wid) return w;
+
+        if (mid) {
+          w.meals = w.meals.map(m => {
+            if (m.id !== +mid) return m;
+            return { ...m, [field]: field === 'amount' ? parse(el.value) : el.value };
+          });
+          return w;
+        }
+
+        let val;
+        if (field === 'unitPrice' || field === 'mealPrice') {
+          val = parseInt(el.value) || 0;
+        } else if (field === 'days' || field === 'mealDays') {
+          val = parseInt(el.value) || 0;
+        } else if (field === 'name') {
+          val = el.value;
+          if (NAMEMAPPING[el.value]) {
+            w.grade = NAMEMAPPING[el.value];
+            w.unitPrice = DEF[NAMEMAPPING[el.value]];
+          }
+          if (el.value !== 'custom') {
+            const customEl = el.closest('.w-card').querySelector('[data-field=name-custom]');
+            if (customEl) customEl.style.display = 'none';
+          }
+        } else {
+          val = el.value;
+        }
+
+        const u = { ...w, [field]: val };
+        if (field === 'grade') {
+          u.unitPrice = DEF[val];
+        }
+        return u;
+      });
+      renderCalc();
+    });
+
+    el.addEventListener('input', () => {
+      const wid = +el.dataset.wid;
+      const field = el.dataset.field;
+      const mid = el.dataset.mid;
+
+      if (field === 'name-custom') {
+        site.workers = site.workers.map(w => w.id === wid ? { ...w, name: el.value } : w);
+      } else if (field === 'unitPrice-custom') {
+        site.workers = site.workers.map(w => w.id === wid ? { ...w, unitPrice: parse(el.value) } : w);
+      } else if (mid && field === 'label') {
+        site.workers = site.workers.map(w => {
+          if (w.id !== wid) return w;
+          w.meals = w.meals.map(m => m.id === mid ? { ...m, label: el.value } : m);
+          return w;
+        });
+      }
+    });
+  });
+
+  // 자동일수 적용 버튼
+  body.querySelectorAll('[data-auto-days]').forEach(el => {
+    el.addEventListener('click', () => {
+      const wid = +el.dataset.autoDays;
+      const autoDays = site.siteType === '아파트' ? weekdayCount : totalDayCount;
+      site.workers = site.workers.map(w => w.id === wid ? { ...w, days: autoDays } : w);
+      renderCalc();
+    });
+  });
+
+  // 삭제 버튼
+  body.querySelectorAll('[data-rem]').forEach(el => {
+    el.addEventListener('click', () => {
+      site.workers = site.workers.filter(w => w.id !== +el.dataset.rem);
+      renderCalc();
+    });
+  });
+
+  // 추가 식대 체크박스 토글
+  body.querySelectorAll('.meal-toggle').forEach(el => {
+    el.addEventListener('change', () => {
+      const wid = +el.dataset.wid;
+      const container = body.querySelector(`.meals-container[data-wid="${wid}"]`);
+      if (el.checked) {
+        container.style.display = 'block';
+        // 체크박스 활성화 시 빈 항목이 없으면 하나 추가
+        const worker = site.workers.find(w => w.id === wid);
+        if (!worker.meals || worker.meals.length === 0) {
+          worker.meals = [{ id: uid(), label: '', amount: 0 }];
+          renderCalc();
+        }
+      } else {
+        container.style.display = 'none';
+      }
+    });
+  });
+
+  body.querySelectorAll('[data-wmrem]').forEach(el => {
+    el.addEventListener('click', () => {
+      const [wid, mid] = el.dataset.wmrem.split('-').map(Number);
+      site.workers = site.workers.map(w => {
+        if (w.id !== wid) return w;
+        w.meals = w.meals.filter(m => m.id !== mid);
+        return w;
+      });
+      renderCalc();
+    });
+  });
+
+  body.querySelectorAll('[data-eid]').forEach(el => {
+    el.addEventListener('change', () => {
+      const eid = +el.dataset.eid;
+      const field = el.dataset.field;
+      site.extras = site.extras.map(e => e.id !== eid ? e : { ...e, [field]: field === 'amount' ? parse(el.value) : el.value });
+      renderCalc();
+    });
+    el.addEventListener('input', () => {
+      if (el.dataset.field === 'label') {
+        const eid = +el.dataset.eid;
+        site.extras = site.extras.map(e => e.id === eid ? { ...e, label: el.value } : e);
+      }
+    });
+  });
+
+  body.querySelectorAll('[data-erem]').forEach(el => {
+    el.addEventListener('click', () => {
+      site.extras = site.extras.filter(e => e.id !== +el.dataset.erem);
+      renderCalc();
+    });
+  });
+
+  // 추가 버튼
+  document.getElementById('btn-add-worker').addEventListener('click', () => {
+    const autoDays = site.siteType === '아파트' ? countWeekdays(site.startDate, site.endDate) : countDays(site.startDate, site.endDate);
+    site.workers.push({
+      id: uid(),
+      name: '김정현',
+      grade: '반장',
+      unitPrice: 420000,
+      days: Math.max(1, autoDays),
+      mealDays: Math.max(1, autoDays),
+      mealPrice: 12000,
+      meals: []
+    });
+    renderCalc();
+  });
+
+  document.getElementById('btn-add-extra').addEventListener('click', () => {
+    site.extras.push({ id: uid(), label: '', amount: 0 });
+    renderCalc();
+  });
+
+  body.querySelectorAll('[data-add-meal]').forEach(el => {
+    el.addEventListener('click', () => {
+      const wid = +el.dataset.addMeal;
+      site.workers = site.workers.map(w => {
+        if (w.id !== wid) return w;
+        if (!w.meals) w.meals = [];
+        w.meals.push({ id: uid(), label: '', amount: 0 });
+        return w;
+      });
+      renderCalc();
+    });
+  });
+
+  // 공유 버튼
+  const shareBtn = document.getElementById('btn-share');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', showCopyModal);
+  }
+
+  const shareImageBtn = document.getElementById('btn-share-image');
+  if (shareImageBtn) {
+    shareImageBtn.addEventListener('click', showShareModal);
+  }
+
+  const saveToSheetsBtn = document.getElementById('btn-save-to-sheets');
+  if (saveToSheetsBtn) {
+    saveToSheetsBtn.addEventListener('click', saveToGoogleSheets);
+  }
+}
+
+// ========== 렌더링: 현장 목록 탭 ==========
+function renderSites() {
+  const body = document.getElementById('tab-sites');
+  if (!sites.length) {
+    body.innerHTML = '<p style="color:#aaa;padding:20px;font-size:16px;">저장된 현장이 없어요.</p>';
+    return;
+  }
+
+  let h = `<div class="card">`;
+  sites.forEach(site => {
+    const sub = site.workers.reduce((a, w) => a + calcW(w).total, 0);
+    const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
+    const grand = sub + et;
+    const dateStr = [site.startDate, site.endDate].filter(Boolean).join(' ~ ');
+    h += `<div class="site-item" data-sid="${site.id}">
+      <div style="flex:1;min-width:0;">
+        <div class="site-name">${site.name || '이름없음'}</div>
+        <div class="site-meta">${dateStr || ''} · ${site.workers.length}명 · ${site.siteType}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span class="badge">${fmt(grand)}원</span>
+        <button class="btn-rem" data-del="${site.id}" style="color:#e00;border-color:#fcc;">×</button>
+      </div>
+    </div>`;
+  });
+  h += `</div>`;
+  h += `<div style="display:flex;gap:8px;margin-top:12px;">
+    <button class="btn-orange" id="btn-csv-export" style="flex:1;">📊 CSV 내보내기</button>
+    <button class="btn-ghost" id="btn-csv-info" style="flex:1;">❓ 사용법</button>
+  </div>`;
+  body.innerHTML = h;
+
+  document.getElementById('btn-csv-export').addEventListener('click', exportToCSV);
+  document.getElementById('btn-csv-info').addEventListener('click', showCSVInfo);
+
+  body.querySelectorAll('.site-item').forEach(el => {
+    el.addEventListener('click', ev => {
+      if (ev.target.dataset.del) return;
+      curId = +el.dataset.sid;
+      switchTab('calc');
+    });
+  });
+
+  body.querySelectorAll('[data-del]').forEach(el => {
+    el.addEventListener('click', ev => {
+      ev.stopPropagation();
+      if (!confirm('이 현장을 삭제할까요?')) return;
+      sites = sites.filter(s => s.id !== +el.dataset.del);
+      if (curId === +el.dataset.del) curId = sites[0]?.id || null;
+      saveSites();
+      renderSites();
+    });
+  });
+}
+
+// ========== 모달: 마크다운 복사 ==========
+function exportToCSV() {
+  if (!sites.length) {
+    alert('저장된 현장이 없습니다.');
+    return;
+  }
+
+  // 헤더
+  const headers = ['현장명', '시작일', '종료일', '현장타입', '인원수', '임금합계', '식대합계', '기타', '세전총액', '세금(%)'];
+  const rows = [headers];
+
+  // 데이터
+  sites.forEach(site => {
+    const wt = site.workers.reduce((a, w) => {
+      const c = calcW(w);
+      return { labor: a.labor + c.labor, meal: a.meal + c.meal + c.extraMeals, sub: a.sub + c.total };
+    }, { labor: 0, meal: 0, sub: 0 });
+    
+    const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
+    const grand = wt.sub + et;
+    const taxRate = site.taxRate > 0 ? (site.taxRate * 100).toFixed(1) : '0';
+
+    rows.push([
+      site.name || '-',
+      site.startDate || '-',
+      site.endDate || '-',
+      site.siteType,
+      site.workers.length,
+      wt.labor.toLocaleString('ko-KR'),
+      wt.meal.toLocaleString('ko-KR'),
+      et.toLocaleString('ko-KR'),
+      grand.toLocaleString('ko-KR'),
+      taxRate
+    ]);
+  });
+
+  // CSV 문자열 생성
+  const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+  
+  // BOM 추가 (한글 엑셀 인코딩)
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  
+  link.setAttribute('href', url);
+  link.setAttribute('download', `데쓰라_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.style.visibility = 'hidden';
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  alert('CSV 파일이 다운로드되었습니다!');
+}
+
+function showCSVInfo() {
+  const mc = document.getElementById('modal-container');
+  mc.style.display = 'block';
+  mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
+    <div class="modal">
+      <p class="modal-title">구글시트 연동 방법</p>
+      <div style="font-size:14px;line-height:1.8;color:#555;">
+        <p style="margin-bottom:12px;font-weight:600;color:#333;">📊 CSV를 구글시트에 옮기는 방법:</p>
+        <ol style="margin-left:16px;margin-bottom:12px;">
+          <li style="margin-bottom:8px;">📥 CSV 내보내기 버튼 클릭</li>
+          <li style="margin-bottom:8px;">📋 <a href="https://sheets.google.com" target="_blank" style="color:#d97706;font-weight:600;">구글시트</a> 접속</li>
+          <li style="margin-bottom:8px;">➕ 새로운 시트 만들기</li>
+          <li style="margin-bottom:8px;">📌 메뉴: 파일 → 가져오기 → 파일 업로드</li>
+          <li style="margin-bottom:8px;">✅ 다운로드한 CSV 파일 선택</li>
+          <li style="margin-bottom:12px;">💾 완료!</li>
+        </ol>
+        <p style="padding:10px;background:#fff9e6;border-radius:8px;font-size:13px;color:#666;">
+          💡 매번 내보내서 같은 시트에 추가하면 계속 업데이트됩니다!
+        </p>
+      </div>
+      <button class="btn-orange" id="btn-close-modal" style="width:100%;margin-top:12px;font-size:16px;">닫기</button>
+    </div>
+  </div>`;
+
+  document.getElementById('btn-close-modal').addEventListener('click', () => {
+    mc.style.display = 'none';
+  });
+}
+
+// ========== 구글시트 저장 함수 ==========
+function saveToGoogleSheets() {
+  const site = getSite();
+  if (!site || !site.name) {
+    alert('현장명을 입력해주세요.');
+    return;
+  }
+
+  const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
+  const wt = site.workers.reduce((a, w) => {
+    const c = calcW(w);
+    return { labor: a.labor + c.labor, meal: a.meal + c.meal + c.extraMeals, sub: a.sub + c.total };
+  }, { labor: 0, meal: 0, sub: 0 });
+  const grand = wt.sub + et;
+  const tax = site.taxRate ? Math.round(grand * site.taxRate) : 0;
+  const afterTax = grand - tax;
+
+  // 상세 payload: 목수별 raw 데이터 포함
+  const payload = {
+    siteName: site.name,
+    startDate: site.startDate || '-',
+    endDate: site.endDate || '-',
+    siteType: site.siteType,
+    taxRate: site.taxRate > 0 ? (site.taxRate * 100).toFixed(1) : '0',
+    subtotal: grand,
+    tax: tax,
+    afterTax: afterTax,
+    workers: site.workers.map(w => {
+      const c = calcW(w);
+      return {
+        name: w.name || '-',
+        grade: w.grade,
+        unitPrice: w.unitPrice,
+        days: w.days,
+        mealPrice: w.mealPrice || 12000,
+        mealDays: w.mealDays,
+        extraMeals: (w.meals || []).map(m => ({ label: m.label || '', amount: m.amount || 0 })),
+        laborTotal: c.labor,
+        mealTotal: c.meal,
+        extraMealTotal: c.extraMeals,
+        total: c.total
+      };
+    }),
+    extras: site.extras.map(e => ({ label: e.label || '', amount: e.amount || 0 }))
+  };
+
+  const btn = document.getElementById('btn-save-to-sheets');
+  btn.textContent = '저장 중...';
+  btn.disabled = true;
+
+  // ★ window.open() 방식: iOS Safari 로컬파일 환경에서 유일하게 동작하는 방법.
+  // Apps Script doGet이 처리 후 자동으로 탭을 닫아줌.
+  const params = new URLSearchParams({ payload: JSON.stringify(payload) });
+  const gasUrl = `https://script.google.com/macros/s/${GAS_DEPLOYMENT_ID}/exec?${params}`;
+
+  // iOS Safari는 사용자 제스처(클릭) 직후에만 window.open 허용
+  const popup = window.open(gasUrl, '_blank');
+
+  if (!popup) {
+    // 팝업 차단된 경우 alert로 안내
+    alert('팝업이 차단되었습니다.\nSafari 설정 → 이 웹사이트 → 팝업 허용 으로 변경해주세요.');
+    btn.textContent = '📊 구글백업';
+    btn.style.background = '#4285f4';
+    btn.disabled = false;
+    return;
+  }
+
+  // 탭이 열린 후 3초 뒤 완료 표시 (Apps Script 처리 시간 고려)
+  setTimeout(() => {
+    btn.textContent = '✓ 저장 완료!';
+    btn.style.background = '#16a34a';
+    setTimeout(() => {
+      btn.textContent = '📊 구글백업';
+      btn.style.background = '#4285f4';
+      btn.disabled = false;
+    }, 2000);
+  }, 3000);
+}
+
+// ========== 모달: 마크다운 복사 (CSV 함수 전) ==========
+function showCopyModal() {
+  const site = getSite();
+  if (!site) return;
+
+  const subtotal = site.workers.reduce((a, w) => a + calcW(w).total, 0) + site.extras.reduce((s, e) => s + (e.amount || 0), 0);
+  const tax = site.taxRate ? Math.round(subtotal * site.taxRate) : 0;
+  const afterTax = subtotal - tax;
+
+  let md = `# ${site.name || '현장'}\n\n`;
+  if (site.startDate || site.endDate) {
+    md += `**기간:** ${[site.startDate, site.endDate].filter(Boolean).join(' ~ ')}\n\n`;
+  }
+  md += `## 인원 현황\n\n`;
+
+  site.workers.forEach(w => {
+    const c = calcW(w);
+    md += `- **${w.name || '-'} (${w.grade})**: 임금 ${fmt(c.labor)} (${fmt(w.unitPrice)}×${w.days}일) + 식대 ${fmt(c.meal + c.extraMeals)} (${fmt(w.mealPrice || 12000)}×${w.mealDays}일) = ${fmt(c.total)}\n`;
+  });
+
+  if (site.extras.filter(e => e.amount).length > 0) {
+    md += `\n## 기타\n\n`;
+    site.extras.filter(e => e.amount).forEach(e => {
+      md += `- ${e.label}: ${fmt(e.amount)}\n`;
+    });
+  }
+
+  md += `\n## 최종 계산\n\n`;
+  md += `- **소계:** ${fmt(subtotal)}\n`;
+  if (site.taxRate > 0) {
+    md += `- **세금 (${(site.taxRate * 100).toFixed(1)}%):** -${fmt(tax)}\n`;
+    md += `- **실수령액:** ${fmt(afterTax)}\n`;
+  }
+
+  const mc = document.getElementById('modal-container');
+  mc.style.display = 'block';
+  mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
+    <div class="modal">
+      <p class="modal-title">계산결과 복사</p>
+      <textarea style="width:100%;height:300px;border:1px solid #e8e4dc;border-radius:10px;padding:12px;font-family:monospace;font-size:13px;resize:none;white-space:pre-wrap;word-wrap:break-word;">${md}</textarea>
+      <button class="btn-orange" onclick="let ta=document.querySelector('textarea');ta.select();document.execCommand('copy');alert('복사되었습니다!');" style="width:100%;margin-top:12px;font-size:16px;">📋 복사하기</button>
+      <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
+    </div>
+  </div>`;
+
+  document.getElementById('btn-close-modal').addEventListener('click', () => {
+    mc.style.display = 'none';
+  });
+}
+
+// ========== 모달: 이미지 공유 ==========
+function showShareModal() {
+  const site = getSite();
+  if (!site) return;
+
+  const wt = site.workers.reduce((a, w) => {
+    const c = calcW(w);
+    return { labor: a.labor + c.labor, meal: a.meal + c.meal + c.extraMeals, sub: a.sub + c.total };
+  }, { labor: 0, meal: 0, sub: 0 });
+
+  const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
+  const grand = wt.sub + et;
+  const dateStr = [site.startDate, site.endDate].filter(Boolean).join(' ~ ');
+
+  let rows = '';
+  site.workers.forEach(w => {
+    const c = calcW(w);
+    rows += `<tr>
+      <td style="text-align:center;">${w.name || '-'}</td>
+      <td style="text-align:right;">${c.days}일</td>
+      <td style="text-align:right;">${fmt(w.unitPrice)}</td>
+      <td style="text-align:right;">${fmt((w.mealPrice || 12000) * w.mealDays)}</td>
+      <td style="text-align:right;">${fmt(c.total)}</td>
+    </tr>`;
+  });
+  site.extras.filter(e => e.label || e.amount).forEach(e => {
+    rows += `<tr><td colspan="4" style="text-align:center;">${e.label}</td><td style="text-align:right;">${fmt(e.amount)}</td></tr>`;
+  });
+
+  const mc = document.getElementById('modal-container');
+  mc.style.display = 'block';
+  mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
+    <div class="modal">
+      <p class="modal-title">이미지로 공유</p>
+      <div class="print-preview" id="print-area">
+        <div class="print-head">${site.name || '현장'}</div>
+        <div class="print-sub">${dateStr || ''}</div>
+        <table class="print-table">
+          <thead><tr>
+            <th style="width:18%;text-align:center;">성명</th>
+            <th style="width:20%;text-align:right;">시공일수</th>
+            <th style="width:18%;text-align:right;">단가</th>
+            <th style="width:16%;text-align:right;">식대</th>
+            <th style="width:28%;text-align:right;">합계</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr class="print-total-row">
+            <td colspan="2" style="font-size:15px;font-weight:700;">임금 총액</td>
+            <td colspan="3" style="text-align:right;font-size:18px;font-weight:800;color:#d97706;">${fmt(grand)} 원</td>
+          </tr></tfoot>
+        </table>
+        <div style="margin-top:14px;font-size:14px;color:#666;font-weight:600;">임금 ${fmt(wt.labor)} · 식대 ${fmt(wt.meal)}</div>
+      </div>
+      <button class="btn-orange" id="btn-capture" style="width:100%;margin-top:12px;font-size:16px;">이미지 저장</button>
+      <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
+    </div>
+  </div>`;
+
+  document.getElementById('btn-close-modal').addEventListener('click', () => {
+    mc.style.display = 'none';
+  });
+
+  document.getElementById('btn-capture').addEventListener('click', () => {
+    const fileName = `${site.name || '데쓰라'}_${site.startDate || '시작일'}-${site.endDate || '종료일'}`;
+    html2canvas(document.getElementById('print-area'), { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+      canvas.toBlob(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileName}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        const btn = document.getElementById('btn-capture');
+        if (btn) {
+          btn.textContent = '저장 완료!';
+          setTimeout(() => {
+            if (btn) btn.textContent = '이미지 저장';
+          }, 2000);
+        }
+      }, 'image/png');
+    });
+  });
+}
+
+// ========== 메인 렌더 함수 ==========
+function render() {
+  activeTab === 'calc' ? renderCalc() : renderSites();
+  updateFloatingButton();
+}
+
+function updateFloatingButton() {
+  const saveBtn = document.getElementById('floating-save-btn');
+  if (saveBtn) {
+    saveBtn.onclick = () => {
+      const site = getSite();
+      if (!site) return;
+      saveSites();
+      saveBtn.textContent = '✓';
+      saveBtn.style.background = '#059669';
+      setTimeout(() => {
+        saveBtn.textContent = '💾';
+        saveBtn.style.background = '#16a34a';
+      }, 1500);
+    };
+  }
+}
+
+// ========== 이벤트 리스너 ==========
+document.addEventListener('click', e => {
+  const tab = e.target.dataset.tab;
+  if (tab) switchTab(tab);
+  if (e.target.id === 'btn-new-calc') {
+    newSite();
+    switchTab('calc');
+  }
+});
+
+// ========== 초기화 ==========
+loadSites();
+// 최초 로드 시 현장이 없으면 새로 생성하지 않음 (loadSites에서 이미 처리)
+// 바로 계산 탭으로 전환
+render();
+</script>
+</body>
+</html>
