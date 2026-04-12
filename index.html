@@ -91,7 +91,7 @@ input,select,button{font-family:inherit;font-size:16px;}
 <div class="root" id="root">
   <div class="topbar">
     <div>
-      <p>인테리어 목수 v28</p>
+      <p>인테리어 목수 v27</p>
       <h1>데쓰라 계산기</h1>
     </div>
     <button class="btn-orange" id="btn-new-calc" style="font-size:14px;padding:10px 14px;">+ 새 현장</button>
@@ -430,7 +430,7 @@ function renderCalc() {
     <div class="divider"></div>`;
   
   h += `<div class="grand-row">
-    <span class="grand-label">총합</span>
+    <span class="grand-label">소계</span>
     <span class="grand-val">${fmt(grand)} 원</span>
   </div>`;
   
@@ -865,49 +865,49 @@ function saveToGoogleSheets() {
   btn.textContent = '저장 중...';
   btn.disabled = true;
 
-  // ★ no-cors POST: Apps Script는 CORS 헤더를 반환하지 않아 fetch 응답을 읽을 수 없음.
-  // no-cors로 요청 전송만 하고 (opaque response), 2초 후 완료 모달 표시.
-  const gasUrl = `https://script.google.com/macros/s/${GAS_DEPLOYMENT_ID}/exec`;
+  // ★ window.open() → 팝업 창으로 열고, 완료 확인 버튼 제공
+  const params = new URLSearchParams({ payload: JSON.stringify(payload) });
+  const gasUrl = `https://script.google.com/macros/s/${GAS_DEPLOYMENT_ID}/exec?${params}`;
 
-  fetch(gasUrl, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: new URLSearchParams({ payload: JSON.stringify(payload) })
-  })
-  .then(() => {
-    showBackupDoneModal();
+  const popup = window.open(gasUrl, '_blank', 'width=1,height=1,left=0,top=0');
+
+  if (!popup) {
+    alert('팝업이 차단되었습니다.\nSafari 설정에서 팝업을 허용해주세요.');
     btn.textContent = '📊 구글백업';
     btn.style.background = '#4285f4';
     btn.disabled = false;
-  })
-  .catch(err => {
-    console.error('백업 오류:', err);
-    alert('백업 실패\n\n' + err.message);
-    btn.textContent = '📊 구글백업';
-    btn.style.background = '#4285f4';
-    btn.disabled = false;
-  });
-}
+    return;
+  }
 
-function showBackupDoneModal() {
-  const mc = document.getElementById('modal-container');
-  mc.style.display = 'block';
-  mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;align-items:center;">
-    <div class="modal" style="border-radius:20px;margin:20px;">
-      <div style="text-align:center;padding:10px 0 20px;">
-        <div style="font-size:52px;margin-bottom:12px;">✅</div>
-        <p style="font-size:18px;font-weight:800;color:#111;margin-bottom:6px;">구글시트 백업 완료</p>
-        <p style="font-size:14px;color:#aaa;">데이터가 스프레드시트에 저장되었습니다.</p>
+  // 팝업은 최소화 상태로 열리고, 앱 내 확인 모달 표시
+  setTimeout(() => {
+    try { popup.close(); } catch(e) {}
+  }, 4000);
+
+  // 완료 모달 표시
+  setTimeout(() => {
+    const mc = document.getElementById('modal-container');
+    mc.style.display = 'block';
+    mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;align-items:center;">
+      <div class="modal" style="border-radius:20px;margin:20px;">
+        <div style="text-align:center;padding:10px 0 20px;">
+          <div style="font-size:52px;margin-bottom:12px;">✅</div>
+          <p style="font-size:18px;font-weight:800;color:#111;margin-bottom:6px;">구글시트 백업 완료</p>
+          <p style="font-size:14px;color:#aaa;">데이터가 스프레드시트에 저장되었습니다.</p>
+        </div>
+        <button class="btn-orange" id="btn-backup-confirm" style="width:100%;font-size:16px;padding:14px;">확인</button>
       </div>
-      <button class="btn-orange" id="btn-backup-confirm" style="width:100%;font-size:16px;padding:14px;">확인</button>
-    </div>
-  </div>`;
-  document.getElementById('btn-backup-confirm').addEventListener('click', () => {
-    mc.style.display = 'none';
-  });
+    </div>`;
+    document.getElementById('btn-backup-confirm').addEventListener('click', () => {
+      mc.style.display = 'none';
+    });
+    btn.textContent = '📊 구글백업';
+    btn.style.background = '#4285f4';
+    btn.disabled = false;
+  }, 2000);
 }
 
-// ========== 모달: 텍스트 복사 (메모앱용) ==========
+// ========== 모달: 마크다운 복사 (CSV 함수 전) ==========
 function showCopyModal() {
   const site = getSite();
   if (!site) return;
@@ -915,74 +915,42 @@ function showCopyModal() {
   const subtotal = site.workers.reduce((a, w) => a + calcW(w).total, 0) + site.extras.reduce((s, e) => s + (e.amount || 0), 0);
   const tax = site.taxRate ? Math.round(subtotal * site.taxRate) : 0;
   const afterTax = subtotal - tax;
-  const dateStr = [site.startDate, site.endDate].filter(Boolean).join(' ~ ');
 
-  let txt = '';
-  txt += `[ ${site.name || '현장'} ]\n`;
-  if (dateStr) txt += `${dateStr} / ${site.siteType}\n`;
-  txt += `\n`;
+  let md = `# ${site.name || '현장'}\n\n`;
+  if (site.startDate || site.endDate) {
+    md += `**기간:** ${[site.startDate, site.endDate].filter(Boolean).join(' ~ ')}\n\n`;
+  }
+  md += `## 인원 현황\n\n`;
 
   site.workers.forEach(w => {
     const c = calcW(w);
-    txt += `${w.name || '-'} (${w.grade})\n`;
-    txt += `  단가 ${fmt(w.unitPrice)}원 × ${w.days}일 = ${fmt(c.labor)}원\n`;
-    txt += `  식대 ${fmt(w.mealPrice || 12000)}원 × ${w.mealDays}일 = ${fmt(c.meal)}원\n`;
-    if (c.extraMeals > 0) {
-      const extras = (w.meals || []).filter(m => m.amount);
-      extras.forEach(m => {
-        txt += `  추가식대 ${m.label ? m.label + ' ' : ''}${fmt(m.amount)}원\n`;
-      });
-    }
-    txt += `  합계 ${fmt(c.total)}원\n`;
-    txt += `\n`;
+    md += `- **${w.name || '-'} (${w.grade})**: 임금 ${fmt(c.labor)} (${fmt(w.unitPrice)}×${w.days}일) + 식대 ${fmt(c.meal + c.extraMeals)} (${fmt(w.mealPrice || 12000)}×${w.mealDays}일) = ${fmt(c.total)}\n`;
   });
 
-  const extras = site.extras.filter(e => e.amount);
-  if (extras.length > 0) {
-    txt += `기타\n`;
-    extras.forEach(e => {
-      txt += `  ${e.label || '-'} ${fmt(e.amount)}원\n`;
+  if (site.extras.filter(e => e.amount).length > 0) {
+    md += `\n## 기타\n\n`;
+    site.extras.filter(e => e.amount).forEach(e => {
+      md += `- ${e.label}: ${fmt(e.amount)}\n`;
     });
-    txt += `\n`;
   }
 
-  txt += `──────────────\n`;
-  txt += `총합  ${fmt(subtotal)}원\n`;
+  md += `\n## 최종 계산\n\n`;
+  md += `- **소계:** ${fmt(subtotal)}\n`;
   if (site.taxRate > 0) {
-    txt += `세금 (${(site.taxRate * 100).toFixed(1)}%)  -${fmt(tax)}원\n`;
-    txt += `실수령액  ${fmt(afterTax)}원\n`;
+    md += `- **세금 (${(site.taxRate * 100).toFixed(1)}%):** -${fmt(tax)}\n`;
+    md += `- **실수령액:** ${fmt(afterTax)}\n`;
   }
 
   const mc = document.getElementById('modal-container');
   mc.style.display = 'block';
   mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
     <div class="modal">
-      <p class="modal-title">텍스트 복사</p>
-      <textarea id="copy-textarea" style="width:100%;height:300px;border:1px solid #e8e4dc;border-radius:10px;padding:12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;line-height:1.8;resize:none;white-space:pre-wrap;word-wrap:break-word;color:#1a1a1a;">${txt}</textarea>
-      <button class="btn-orange" id="btn-do-copy" style="width:100%;margin-top:12px;font-size:16px;">📋 복사하기</button>
+      <p class="modal-title">계산결과 복사</p>
+      <textarea style="width:100%;height:300px;border:1px solid #e8e4dc;border-radius:10px;padding:12px;font-family:monospace;font-size:13px;resize:none;white-space:pre-wrap;word-wrap:break-word;">${md}</textarea>
+      <button class="btn-orange" onclick="let ta=document.querySelector('textarea');ta.select();document.execCommand('copy');alert('복사되었습니다!');" style="width:100%;margin-top:12px;font-size:16px;">📋 복사하기</button>
       <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
     </div>
   </div>`;
-
-  document.getElementById('btn-do-copy').addEventListener('click', () => {
-    const ta = document.getElementById('copy-textarea');
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(ta.value).then(() => {
-        document.getElementById('btn-do-copy').textContent = '✓ 복사됨!';
-        setTimeout(() => { document.getElementById('btn-do-copy').textContent = '📋 복사하기'; }, 2000);
-      }).catch(() => {
-        ta.select();
-        document.execCommand('copy');
-        document.getElementById('btn-do-copy').textContent = '✓ 복사됨!';
-        setTimeout(() => { document.getElementById('btn-do-copy').textContent = '📋 복사하기'; }, 2000);
-      });
-    } else {
-      ta.select();
-      document.execCommand('copy');
-      document.getElementById('btn-do-copy').textContent = '✓ 복사됨!';
-      setTimeout(() => { document.getElementById('btn-do-copy').textContent = '📋 복사하기'; }, 2000);
-    }
-  });
 
   document.getElementById('btn-close-modal').addEventListener('click', () => {
     mc.style.display = 'none';
