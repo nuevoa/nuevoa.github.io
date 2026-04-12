@@ -1,0 +1,28 @@
+{
+  "id": "mnvrn2ttsopap",
+  "name": "현장1",
+  "siteType": "아파트",
+  "manager": "",
+  "startDate": "2026-04-13",
+  "endDate": "2026-04-17",
+  "workers": [
+    {
+      "id": "mnvrn2ttrzbp9",
+      "name": "김정현",
+      "grade": "반장",
+      "unitPrice": 420000,
+      "days": 5,
+      "mealDays": 5,
+      "mealPrice": 12000,
+      "meals": []
+    }
+  ],
+  "extras": [
+    {
+      "id": "mnvrn2ttk1tku",
+      "label": "",
+      "amount": 0
+    }
+  ],
+  "taxRate": 0
+}
