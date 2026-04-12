@@ -1,0 +1,28 @@
+{
+  "id": "mnvrlea2eqhui",
+  "name": "",
+  "siteType": "아파트",
+  "manager": "",
+  "startDate": "2026-04-12",
+  "endDate": "2026-04-12",
+  "workers": [
+    {
+      "id": "mnvrlea25p66n",
+      "name": "김정현",
+      "grade": "반장",
+      "unitPrice": 420000,
+      "days": 1,
+      "mealDays": 0,
+      "mealPrice": 12000,
+      "meals": []
+    }
+  ],
+  "extras": [
+    {
+      "id": "mnvrlea27ko41",
+      "label": "",
+      "amount": 0
+    }
+  ],
+  "taxRate": 0
+}
