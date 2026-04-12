@@ -126,10 +126,7 @@ const SITETYPES = ['아파트', '상가'];
 const GAS_DEPLOYMENT_ID = 'AKfycbxoPmU8e6xNi_cCpZtzkhrDkIdvRF1X8LXfvSDpqWmx8c-tSkcVy-ky2QZlBhgq3msG';
 
 // ========== 유틸 함수 ==========
-// 충돌 불가능한 string UUID 생성기 (기존 숫자 ID 시스템 대체)
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 function fmt(n) {
   return (!n && n !== 0) ? '' : Number(n).toLocaleString('ko-KR');
@@ -197,31 +194,33 @@ function loadSites() {
     if (d) sites = JSON.parse(d);
   } catch (e) { }
 
-  // 구버전 숫자 ID → string ID 마이그레이션
+  // 구버전 숫자 ID → string ID 마이그레이션 (한 번만 실행됨)
   let migrated = false;
   sites = sites.map(s => {
-    if (typeof s.id === 'number') {
-      migrated = true;
-      s = { ...s, id: uid() };
-    }
-    s.workers = (s.workers || []).map(w => {
-      if (typeof w.id === 'number') { migrated = true; w = { ...w, id: uid() }; }
-      w.meals = (w.meals || []).map(m => {
+    let ns = s;
+    if (typeof ns.id === 'number') { ns = { ...ns, id: uid() }; migrated = true; }
+    ns.workers = (ns.workers || []).map(w => {
+      let nw = w;
+      if (typeof nw.id === 'number') { nw = { ...nw, id: uid() }; migrated = true; }
+      nw.meals = (nw.meals || []).map(m => {
         if (typeof m.id === 'number') { migrated = true; return { ...m, id: uid() }; }
         return m;
       });
-      return w;
+      return nw;
     });
-    s.extras = (s.extras || []).map(e => {
+    ns.extras = (ns.extras || []).map(e => {
       if (typeof e.id === 'number') { migrated = true; return { ...e, id: uid() }; }
       return e;
     });
-    return s;
+    return ns;
   });
   if (migrated) saveSites();
 
-  if (!sites.length) newSite();
-  else curId = sites[0].id;
+  if (!sites.length) {
+    newSite(); // 현장 없을 때만 새 현장 생성
+  } else {
+    curId = sites[0].id; // 기존 현장 있으면 첫 번째를 현재로 설정
+  }
 }
 
 function saveSites() {
@@ -231,7 +230,7 @@ function saveSites() {
 }
 
 function getSite() {
-  return sites.find(s => s.id === curId);
+  return sites.find(s => String(s.id) === String(curId));
 }
 
 function newSite() {
@@ -257,7 +256,7 @@ function newSite() {
   };
   sites.unshift(s);
   curId = s.id;
-  saveSites();
+  // saveSites() 제거 — 저장버튼(💾) 또는 구글백업 누를 때만 저장
 }
 
 // ========== 탭 전환 ==========
@@ -521,16 +520,16 @@ function renderCalc() {
   // Worker 바인딩
   body.querySelectorAll('[data-wid]').forEach(el => {
     el.addEventListener('change', () => {
-      const wid = el.dataset.wid;
+      const wid = el.dataset.wid;       // string 그대로
       const field = el.dataset.field;
-      const mid = el.dataset.mid;
+      const mid = el.dataset.mid || null;
 
       site.workers = site.workers.map(w => {
-        if (w.id !== wid) return w;
+        if (String(w.id) !== wid) return w;
 
         if (mid) {
           w.meals = w.meals.map(m => {
-            if (m.id !== mid) return m;
+            if (String(m.id) !== mid) return m;
             return { ...m, [field]: field === 'amount' ? parse(el.value) : el.value };
           });
           return w;
@@ -565,18 +564,18 @@ function renderCalc() {
     });
 
     el.addEventListener('input', () => {
-      const wid = el.dataset.wid;
+      const wid = el.dataset.wid;       // string 그대로
       const field = el.dataset.field;
-      const mid = el.dataset.mid;
+      const mid = el.dataset.mid || null;
 
       if (field === 'name-custom') {
-        site.workers = site.workers.map(w => w.id === wid ? { ...w, name: el.value } : w);
+        site.workers = site.workers.map(w => String(w.id) === wid ? { ...w, name: el.value } : w);
       } else if (field === 'unitPrice-custom') {
-        site.workers = site.workers.map(w => w.id === wid ? { ...w, unitPrice: parse(el.value) } : w);
+        site.workers = site.workers.map(w => String(w.id) === wid ? { ...w, unitPrice: parse(el.value) } : w);
       } else if (mid && field === 'label') {
         site.workers = site.workers.map(w => {
-          if (w.id !== wid) return w;
-          w.meals = w.meals.map(m => m.id === mid ? { ...m, label: el.value } : m);
+          if (String(w.id) !== wid) return w;
+          w.meals = w.meals.map(m => String(m.id) === mid ? { ...m, label: el.value } : m);
           return w;
         });
       }
@@ -586,17 +585,18 @@ function renderCalc() {
   // 자동일수 적용 버튼
   body.querySelectorAll('[data-auto-days]').forEach(el => {
     el.addEventListener('click', () => {
-      const wid = el.dataset.autoDays;
+      const wid = el.dataset.autoDays;  // string 그대로
       const autoDays = site.siteType === '아파트' ? weekdayCount : totalDayCount;
-      site.workers = site.workers.map(w => w.id === wid ? { ...w, days: autoDays } : w);
+      site.workers = site.workers.map(w => String(w.id) === wid ? { ...w, days: autoDays } : w);
       renderCalc();
     });
   });
 
-  // 삭제 버튼
+  // worker 삭제 버튼
   body.querySelectorAll('[data-rem]').forEach(el => {
     el.addEventListener('click', () => {
-      site.workers = site.workers.filter(w => w.id !== el.dataset.rem);
+      const remId = el.dataset.rem;     // string 그대로
+      site.workers = site.workers.filter(w => String(w.id) !== remId);
       renderCalc();
     });
   });
@@ -604,12 +604,11 @@ function renderCalc() {
   // 추가 식대 체크박스 토글
   body.querySelectorAll('.meal-toggle').forEach(el => {
     el.addEventListener('change', () => {
-      const wid = el.dataset.wid;
+      const wid = el.dataset.wid;       // string 그대로
       const container = body.querySelector(`.meals-container[data-wid="${wid}"]`);
       if (el.checked) {
         container.style.display = 'block';
-        // 체크박스 활성화 시 빈 항목이 없으면 하나 추가
-        const worker = site.workers.find(w => w.id === wid);
+        const worker = site.workers.find(w => String(w.id) === wid);
         if (!worker.meals || worker.meals.length === 0) {
           worker.meals = [{ id: uid(), label: '', amount: 0 }];
           renderCalc();
@@ -620,14 +619,15 @@ function renderCalc() {
     });
   });
 
+  // 추가 식대 개별 삭제 — 구분자를 '|' 사용 (string ID에 하이픈 포함 가능해서)
   body.querySelectorAll('[data-wmrem]').forEach(el => {
     el.addEventListener('click', () => {
       const parts = el.dataset.wmrem.split('|');
       const wid = parts[0];
       const mid = parts[1];
       site.workers = site.workers.map(w => {
-        if (w.id !== wid) return w;
-        w.meals = w.meals.filter(m => m.id !== mid);
+        if (String(w.id) !== wid) return w;
+        w.meals = w.meals.filter(m => String(m.id) !== mid);
         return w;
       });
       renderCalc();
@@ -636,22 +636,23 @@ function renderCalc() {
 
   body.querySelectorAll('[data-eid]').forEach(el => {
     el.addEventListener('change', () => {
-      const eid = el.dataset.eid;
+      const eid = el.dataset.eid;       // string 그대로
       const field = el.dataset.field;
-      site.extras = site.extras.map(e => e.id !== eid ? e : { ...e, [field]: field === 'amount' ? parse(el.value) : el.value });
+      site.extras = site.extras.map(e => String(e.id) !== eid ? e : { ...e, [field]: field === 'amount' ? parse(el.value) : el.value });
       renderCalc();
     });
     el.addEventListener('input', () => {
       if (el.dataset.field === 'label') {
-        const eid = el.dataset.eid;
-        site.extras = site.extras.map(e => e.id === eid ? { ...e, label: el.value } : e);
+        const eid = el.dataset.eid;     // string 그대로
+        site.extras = site.extras.map(e => String(e.id) === eid ? { ...e, label: el.value } : e);
       }
     });
   });
 
   body.querySelectorAll('[data-erem]').forEach(el => {
     el.addEventListener('click', () => {
-      site.extras = site.extras.filter(e => e.id !== el.dataset.erem);
+      const eremId = el.dataset.erem;   // string 그대로
+      site.extras = site.extras.filter(e => String(e.id) !== eremId);
       renderCalc();
     });
   });
@@ -679,9 +680,9 @@ function renderCalc() {
 
   body.querySelectorAll('[data-add-meal]').forEach(el => {
     el.addEventListener('click', () => {
-      const wid = el.dataset.addMeal;
+      const wid = el.dataset.addMeal;   // string 그대로
       site.workers = site.workers.map(w => {
-        if (w.id !== wid) return w;
+        if (String(w.id) !== wid) return w;
         if (!w.meals) w.meals = [];
         w.meals.push({ id: uid(), label: '', amount: 0 });
         return w;
@@ -710,13 +711,21 @@ function renderCalc() {
 // ========== 렌더링: 현장 목록 탭 ==========
 function renderSites() {
   const body = document.getElementById('tab-sites');
-  if (!sites.length) {
+
+  // 목록은 실제 저장된(localStorage) 현장만 표시
+  let saved = [];
+  try {
+    const d = localStorage.getItem(SK);
+    if (d) saved = JSON.parse(d);
+  } catch (e) { }
+
+  if (!saved.length) {
     body.innerHTML = '<p style="color:#aaa;padding:20px;font-size:16px;">저장된 현장이 없어요.</p>';
     return;
   }
 
   let h = `<div class="card">`;
-  sites.forEach(site => {
+  saved.forEach(site => {
     const sub = site.workers.reduce((a, w) => a + calcW(w).total, 0);
     const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
     const grand = sub + et;
@@ -744,7 +753,7 @@ function renderSites() {
 
   body.querySelectorAll('.site-item').forEach(el => {
     el.addEventListener('click', ev => {
-      // 삭제 버튼 또는 그 자식 요소 클릭 시 무시
+      // ×버튼 또는 그 자식(텍스트노드) 클릭 시 무시
       if (ev.target.closest('[data-del]')) return;
       curId = el.dataset.sid;
       switchTab('calc');
@@ -754,10 +763,10 @@ function renderSites() {
   body.querySelectorAll('[data-del]').forEach(el => {
     el.addEventListener('click', ev => {
       ev.stopPropagation();
-      const delId = el.dataset.del;
+      const delId = el.dataset.del; // string 그대로 사용
       if (!confirm('이 현장을 삭제할까요?')) return;
-      sites = sites.filter(s => s.id !== delId);
-      if (curId === delId) curId = sites[0]?.id || null;
+      sites = sites.filter(s => String(s.id) !== delId);
+      if (String(curId) === delId) curId = sites[0]?.id || null;
       saveSites();
       renderSites();
     });
