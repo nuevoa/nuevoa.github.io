@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ko">
 <head>
 <meta charset="utf-8"/>
@@ -86,6 +87,7 @@ input,select,button{font-family:inherit;font-size:16px;}
 
 .weekend-tag{display:inline-block;font-size:11px;color:#e74c3c;font-weight:600;margin-left:4px;}
 </style>
+
 </head>
 <body>
 <div class="root" id="root">
@@ -111,6 +113,7 @@ input,select,button{font-family:inherit;font-size:16px;}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <script>
 // ========== 상수 정의 ==========
 const GRADES = ["반장", "기공", "중목"];
@@ -123,8 +126,10 @@ const SITETYPES = ['아파트', '상가'];
 const GAS_DEPLOYMENT_ID = 'AKfycbxoPmU8e6xNi_cCpZtzkhrDkIdvRF1X8LXfvSDpqWmx8c-tSkcVy-ky2QZlBhgq3msG';
 
 // ========== 유틸 함수 ==========
-let nid = 200;
-const uid = () => nid++;
+// 충돌 불가능한 string UUID 생성기 (기존 숫자 ID 시스템 대체)
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
 
 function fmt(n) {
   return (!n && n !== 0) ? '' : Number(n).toLocaleString('ko-KR');
@@ -191,7 +196,32 @@ function loadSites() {
     const d = localStorage.getItem(SK);
     if (d) sites = JSON.parse(d);
   } catch (e) { }
+
+  // 구버전 숫자 ID → string ID 마이그레이션
+  let migrated = false;
+  sites = sites.map(s => {
+    if (typeof s.id === 'number') {
+      migrated = true;
+      s = { ...s, id: uid() };
+    }
+    s.workers = (s.workers || []).map(w => {
+      if (typeof w.id === 'number') { migrated = true; w = { ...w, id: uid() }; }
+      w.meals = (w.meals || []).map(m => {
+        if (typeof m.id === 'number') { migrated = true; return { ...m, id: uid() }; }
+        return m;
+      });
+      return w;
+    });
+    s.extras = (s.extras || []).map(e => {
+      if (typeof e.id === 'number') { migrated = true; return { ...e, id: uid() }; }
+      return e;
+    });
+    return s;
+  });
+  if (migrated) saveSites();
+
   if (!sites.length) newSite();
+  else curId = sites[0].id;
 }
 
 function saveSites() {
@@ -393,7 +423,7 @@ function renderCalc() {
               <input class="inp" data-wid="${w.id}" data-mid="${m.id}" data-field="label" value="${m.label}" placeholder="항목명" style="width:70px;font-size:14px;padding:8px 10px;" />
               <input class="inp" data-wid="${w.id}" data-mid="${m.id}" data-field="amount" value="${fmt(m.amount)}" style="flex:1;font-size:14px;padding:8px 10px;text-align:right;" inputmode="numeric" />
               <span style="font-size:12px;color:#aaa;flex-shrink:0;">원</span>
-              <button class="btn-rem" data-wmrem="${w.id}-${m.id}" style="width:32px;height:32px;font-size:18px;">×</button>
+              <button class="btn-rem" data-wmrem="${w.id}|${m.id}" style="width:32px;height:32px;font-size:18px;">×</button>
             </div>
           `).join('') : ''}
           <button class="btn-ghost" data-add-meal="${w.id}" style="width:100%;margin-top:4px;padding:8px 12px;font-size:13px;">+ 항목 추가</button>
@@ -491,7 +521,7 @@ function renderCalc() {
   // Worker 바인딩
   body.querySelectorAll('[data-wid]').forEach(el => {
     el.addEventListener('change', () => {
-      const wid = +el.dataset.wid;
+      const wid = el.dataset.wid;
       const field = el.dataset.field;
       const mid = el.dataset.mid;
 
@@ -500,7 +530,7 @@ function renderCalc() {
 
         if (mid) {
           w.meals = w.meals.map(m => {
-            if (m.id !== +mid) return m;
+            if (m.id !== mid) return m;
             return { ...m, [field]: field === 'amount' ? parse(el.value) : el.value };
           });
           return w;
@@ -535,7 +565,7 @@ function renderCalc() {
     });
 
     el.addEventListener('input', () => {
-      const wid = +el.dataset.wid;
+      const wid = el.dataset.wid;
       const field = el.dataset.field;
       const mid = el.dataset.mid;
 
@@ -556,7 +586,7 @@ function renderCalc() {
   // 자동일수 적용 버튼
   body.querySelectorAll('[data-auto-days]').forEach(el => {
     el.addEventListener('click', () => {
-      const wid = +el.dataset.autoDays;
+      const wid = el.dataset.autoDays;
       const autoDays = site.siteType === '아파트' ? weekdayCount : totalDayCount;
       site.workers = site.workers.map(w => w.id === wid ? { ...w, days: autoDays } : w);
       renderCalc();
@@ -566,7 +596,7 @@ function renderCalc() {
   // 삭제 버튼
   body.querySelectorAll('[data-rem]').forEach(el => {
     el.addEventListener('click', () => {
-      site.workers = site.workers.filter(w => w.id !== +el.dataset.rem);
+      site.workers = site.workers.filter(w => w.id !== el.dataset.rem);
       renderCalc();
     });
   });
@@ -574,7 +604,7 @@ function renderCalc() {
   // 추가 식대 체크박스 토글
   body.querySelectorAll('.meal-toggle').forEach(el => {
     el.addEventListener('change', () => {
-      const wid = +el.dataset.wid;
+      const wid = el.dataset.wid;
       const container = body.querySelector(`.meals-container[data-wid="${wid}"]`);
       if (el.checked) {
         container.style.display = 'block';
@@ -592,7 +622,9 @@ function renderCalc() {
 
   body.querySelectorAll('[data-wmrem]').forEach(el => {
     el.addEventListener('click', () => {
-      const [wid, mid] = el.dataset.wmrem.split('-').map(Number);
+      const parts = el.dataset.wmrem.split('|');
+      const wid = parts[0];
+      const mid = parts[1];
       site.workers = site.workers.map(w => {
         if (w.id !== wid) return w;
         w.meals = w.meals.filter(m => m.id !== mid);
@@ -604,14 +636,14 @@ function renderCalc() {
 
   body.querySelectorAll('[data-eid]').forEach(el => {
     el.addEventListener('change', () => {
-      const eid = +el.dataset.eid;
+      const eid = el.dataset.eid;
       const field = el.dataset.field;
       site.extras = site.extras.map(e => e.id !== eid ? e : { ...e, [field]: field === 'amount' ? parse(el.value) : el.value });
       renderCalc();
     });
     el.addEventListener('input', () => {
       if (el.dataset.field === 'label') {
-        const eid = +el.dataset.eid;
+        const eid = el.dataset.eid;
         site.extras = site.extras.map(e => e.id === eid ? { ...e, label: el.value } : e);
       }
     });
@@ -619,7 +651,7 @@ function renderCalc() {
 
   body.querySelectorAll('[data-erem]').forEach(el => {
     el.addEventListener('click', () => {
-      site.extras = site.extras.filter(e => e.id !== +el.dataset.erem);
+      site.extras = site.extras.filter(e => e.id !== el.dataset.erem);
       renderCalc();
     });
   });
@@ -647,7 +679,7 @@ function renderCalc() {
 
   body.querySelectorAll('[data-add-meal]').forEach(el => {
     el.addEventListener('click', () => {
-      const wid = +el.dataset.addMeal;
+      const wid = el.dataset.addMeal;
       site.workers = site.workers.map(w => {
         if (w.id !== wid) return w;
         if (!w.meals) w.meals = [];
@@ -713,7 +745,7 @@ function renderSites() {
   body.querySelectorAll('.site-item').forEach(el => {
     el.addEventListener('click', ev => {
       if (ev.target.dataset.del) return;
-      curId = +el.dataset.sid;
+      curId = el.dataset.sid;
       switchTab('calc');
     });
   });
@@ -722,8 +754,9 @@ function renderSites() {
     el.addEventListener('click', ev => {
       ev.stopPropagation();
       if (!confirm('이 현장을 삭제할까요?')) return;
-      sites = sites.filter(s => s.id !== +el.dataset.del);
-      if (curId === +el.dataset.del) curId = sites[0]?.id || null;
+      const delId = el.dataset.del;
+      sites = sites.filter(s => s.id !== delId);
+      if (curId === delId) curId = sites[0]?.id || null;
       saveSites();
       renderSites();
     });
@@ -947,132 +980,131 @@ function showCopyModal() {
     <div class="modal">
       <p class="modal-title">계산결과 복사</p>
       <textarea style="width:100%;height:300px;border:1px solid #e8e4dc;border-radius:10px;padding:12px;font-family:monospace;font-size:13px;resize:none;white-space:pre-wrap;word-wrap:break-word;">${md}</textarea>
-      <button class="btn-orange" onclick="let ta=document.querySelector('textarea');ta.select();document.execCommand('copy');alert('복사되었습니다!');" style="width:100%;margin-top:12px;font-size:16px;">📋 복사하기</button>
-      <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
-    </div>
+
+```
+  <button class="btn-orange" onclick="let ta=document.querySelector('textarea');ta.select();document.execCommand('copy');alert('복사되었습니다!');" style="width:100%;margin-top:12px;font-size:16px;">📋 복사하기</button>
+  <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
+</div>
+```
+
   </div>`;
 
-  document.getElementById('btn-close-modal').addEventListener('click', () => {
-    mc.style.display = 'none';
-  });
+document.getElementById(‘btn-close-modal’).addEventListener(‘click’, () => {
+mc.style.display = ‘none’;
+});
 }
 
 // ========== 모달: 이미지 공유 ==========
 function showShareModal() {
-  const site = getSite();
-  if (!site) return;
+const site = getSite();
+if (!site) return;
 
-  const wt = site.workers.reduce((a, w) => {
-    const c = calcW(w);
-    return { labor: a.labor + c.labor, meal: a.meal + c.meal + c.extraMeals, sub: a.sub + c.total };
-  }, { labor: 0, meal: 0, sub: 0 });
+const wt = site.workers.reduce((a, w) => {
+const c = calcW(w);
+return { labor: a.labor + c.labor, meal: a.meal + c.meal + c.extraMeals, sub: a.sub + c.total };
+}, { labor: 0, meal: 0, sub: 0 });
 
-  const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
-  const grand = wt.sub + et;
-  const dateStr = [site.startDate, site.endDate].filter(Boolean).join(' ~ ');
+const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
+const grand = wt.sub + et;
+const dateStr = [site.startDate, site.endDate].filter(Boolean).join(’ ~ ’);
 
-  let rows = '';
-  site.workers.forEach(w => {
-    const c = calcW(w);
-    rows += `<tr>
-      <td style="text-align:center;">${w.name || '-'}</td>
-      <td style="text-align:right;">${c.days}일</td>
-      <td style="text-align:right;">${fmt(w.unitPrice)}</td>
-      <td style="text-align:right;">${fmt((w.mealPrice || 12000) * w.mealDays)}</td>
-      <td style="text-align:right;">${fmt(c.total)}</td>
-    </tr>`;
-  });
-  site.extras.filter(e => e.label || e.amount).forEach(e => {
-    rows += `<tr><td colspan="4" style="text-align:center;">${e.label}</td><td style="text-align:right;">${fmt(e.amount)}</td></tr>`;
-  });
+let rows = ‘’;
+site.workers.forEach(w => {
+const c = calcW(w);
+rows += `<tr> <td style="text-align:center;">${w.name || '-'}</td> <td style="text-align:right;">${c.days}일</td> <td style="text-align:right;">${fmt(w.unitPrice)}</td> <td style="text-align:right;">${fmt((w.mealPrice || 12000) * w.mealDays)}</td> <td style="text-align:right;">${fmt(c.total)}</td> </tr>`;
+});
+site.extras.filter(e => e.label || e.amount).forEach(e => {
+rows += `<tr><td colspan="4" style="text-align:center;">${e.label}</td><td style="text-align:right;">${fmt(e.amount)}</td></tr>`;
+});
 
-  const mc = document.getElementById('modal-container');
-  mc.style.display = 'block';
-  mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
-    <div class="modal">
-      <p class="modal-title">이미지로 공유</p>
-      <div class="print-preview" id="print-area">
-        <div class="print-head">${site.name || '현장'}</div>
-        <div class="print-sub">${dateStr || ''}</div>
-        <table class="print-table">
-          <thead><tr>
-            <th style="width:18%;text-align:center;">성명</th>
-            <th style="width:20%;text-align:right;">시공일수</th>
-            <th style="width:18%;text-align:right;">단가</th>
-            <th style="width:16%;text-align:right;">식대</th>
-            <th style="width:28%;text-align:right;">합계</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-          <tfoot><tr class="print-total-row">
-            <td colspan="2" style="font-size:15px;font-weight:700;">임금 총액</td>
-            <td colspan="3" style="text-align:right;font-size:18px;font-weight:800;color:#d97706;">${fmt(grand)} 원</td>
-          </tr></tfoot>
-        </table>
-        <div style="margin-top:14px;font-size:14px;color:#666;font-weight:600;">임금 ${fmt(wt.labor)} · 식대 ${fmt(wt.meal)}</div>
-      </div>
-      <button class="btn-orange" id="btn-capture" style="width:100%;margin-top:12px;font-size:16px;">이미지 저장</button>
-      <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
-    </div>
+const mc = document.getElementById(‘modal-container’);
+mc.style.display = ‘block’;
+mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
+<div class="modal">
+<p class="modal-title">이미지로 공유</p>
+<div class="print-preview" id="print-area">
+<div class="print-head">${site.name || ‘현장’}</div>
+<div class="print-sub">${dateStr || ‘’}</div>
+<table class="print-table">
+<thead><tr>
+<th style="width:18%;text-align:center;">성명</th>
+<th style="width:20%;text-align:right;">시공일수</th>
+<th style="width:18%;text-align:right;">단가</th>
+<th style="width:16%;text-align:right;">식대</th>
+<th style="width:28%;text-align:right;">합계</th>
+</tr></thead>
+<tbody>${rows}</tbody>
+<tfoot><tr class="print-total-row">
+<td colspan="2" style="font-size:15px;font-weight:700;">임금 총액</td>
+<td colspan="3" style="text-align:right;font-size:18px;font-weight:800;color:#d97706;">${fmt(grand)} 원</td>
+</tr></tfoot>
+</table>
+<div style="margin-top:14px;font-size:14px;color:#666;font-weight:600;">임금 ${fmt(wt.labor)} · 식대 ${fmt(wt.meal)}</div>
+</div>
+<button class="btn-orange" id="btn-capture" style="width:100%;margin-top:12px;font-size:16px;">이미지 저장</button>
+<button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
+</div>
+
   </div>`;
 
-  document.getElementById('btn-close-modal').addEventListener('click', () => {
-    mc.style.display = 'none';
-  });
+document.getElementById(‘btn-close-modal’).addEventListener(‘click’, () => {
+mc.style.display = ‘none’;
+});
 
-  document.getElementById('btn-capture').addEventListener('click', () => {
-    const fileName = `${site.name || '데쓰라'}_${site.startDate || '시작일'}-${site.endDate || '종료일'}`;
-    html2canvas(document.getElementById('print-area'), { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
-      canvas.toBlob(blob => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${fileName}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
-        const btn = document.getElementById('btn-capture');
-        if (btn) {
-          btn.textContent = '저장 완료!';
-          setTimeout(() => {
-            if (btn) btn.textContent = '이미지 저장';
-          }, 2000);
-        }
-      }, 'image/png');
-    });
-  });
+document.getElementById(‘btn-capture’).addEventListener(‘click’, () => {
+const fileName = `${site.name || '데쓰라'}_${site.startDate || '시작일'}-${site.endDate || '종료일'}`;
+html2canvas(document.getElementById(‘print-area’), { scale: 2, backgroundColor: ‘#ffffff’ }).then(canvas => {
+canvas.toBlob(blob => {
+if (!blob) return;
+const url = URL.createObjectURL(blob);
+const a = document.createElement(‘a’);
+a.href = url;
+a.download = `${fileName}.png`;
+a.click();
+URL.revokeObjectURL(url);
+const btn = document.getElementById(‘btn-capture’);
+if (btn) {
+btn.textContent = ‘저장 완료!’;
+setTimeout(() => {
+if (btn) btn.textContent = ‘이미지 저장’;
+}, 2000);
+}
+}, ‘image/png’);
+});
+});
 }
 
 // ========== 메인 렌더 함수 ==========
 function render() {
-  activeTab === 'calc' ? renderCalc() : renderSites();
-  updateFloatingButton();
+activeTab === ‘calc’ ? renderCalc() : renderSites();
+updateFloatingButton();
 }
 
 function updateFloatingButton() {
-  const saveBtn = document.getElementById('floating-save-btn');
-  if (saveBtn) {
-    saveBtn.onclick = () => {
-      const site = getSite();
-      if (!site) return;
-      saveSites();
-      saveBtn.textContent = '✓';
-      saveBtn.style.background = '#059669';
-      setTimeout(() => {
-        saveBtn.textContent = '💾';
-        saveBtn.style.background = '#16a34a';
-      }, 1500);
-    };
-  }
+const saveBtn = document.getElementById(‘floating-save-btn’);
+if (saveBtn) {
+saveBtn.onclick = () => {
+const site = getSite();
+if (!site) return;
+saveSites();
+saveBtn.textContent = ‘✓’;
+saveBtn.style.background = ‘#059669’;
+setTimeout(() => {
+saveBtn.textContent = ‘💾’;
+saveBtn.style.background = ‘#16a34a’;
+}, 1500);
+};
+}
 }
 
 // ========== 이벤트 리스너 ==========
-document.addEventListener('click', e => {
-  const tab = e.target.dataset.tab;
-  if (tab) switchTab(tab);
-  if (e.target.id === 'btn-new-calc') {
-    newSite();
-    switchTab('calc');
-  }
+document.addEventListener(‘click’, e => {
+const tab = e.target.dataset.tab;
+if (tab) switchTab(tab);
+if (e.target.id === ‘btn-new-calc’) {
+newSite();
+switchTab(‘calc’);
+}
 });
 
 // ========== 초기화 ==========
@@ -1081,5 +1113,6 @@ loadSites();
 // 바로 계산 탭으로 전환
 render();
 </script>
+
 </body>
 </html>
