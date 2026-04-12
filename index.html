@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ko">
 <head>
 <meta charset="utf-8"/>
@@ -87,13 +86,12 @@ input,select,button{font-family:inherit;font-size:16px;}
 
 .weekend-tag{display:inline-block;font-size:11px;color:#e74c3c;font-weight:600;margin-left:4px;}
 </style>
-
 </head>
 <body>
 <div class="root" id="root">
   <div class="topbar">
     <div>
-      <p>인테리어 목수 v27</p>
+      <p>인테리어 목수 v28</p>
       <h1>데쓰라 계산기</h1>
     </div>
     <button class="btn-orange" id="btn-new-calc" style="font-size:14px;padding:10px 14px;">+ 새 현장</button>
@@ -113,7 +111,6 @@ input,select,button{font-family:inherit;font-size:16px;}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
 <script>
 // ========== 상수 정의 ==========
 const GRADES = ["반장", "기공", "중목"];
@@ -433,7 +430,7 @@ function renderCalc() {
     <div class="divider"></div>`;
   
   h += `<div class="grand-row">
-    <span class="grand-label">소계</span>
+    <span class="grand-label">총합</span>
     <span class="grand-val">${fmt(grand)} 원</span>
   </div>`;
   
@@ -868,27 +865,17 @@ function saveToGoogleSheets() {
   btn.textContent = '저장 중...';
   btn.disabled = true;
 
-  // ★ window.open() → 팝업 창으로 열고, 완료 확인 버튼 제공
-  const params = new URLSearchParams({ payload: JSON.stringify(payload) });
-  const gasUrl = `https://script.google.com/macros/s/${GAS_DEPLOYMENT_ID}/exec?${params}`;
+  // ★ fetch + CORS: GitHub Pages(https://)에서 열면 CORS 정상 작동.
+  // Apps Script 배포 설정: "액세스 권한 - 모든 사용자" 필수.
+  const gasUrl = `https://script.google.com/macros/s/${GAS_DEPLOYMENT_ID}/exec`;
 
-  const popup = window.open(gasUrl, '_blank', 'width=1,height=1,left=0,top=0');
-
-  if (!popup) {
-    alert('팝업이 차단되었습니다.\nSafari 설정에서 팝업을 허용해주세요.');
-    btn.textContent = '📊 구글백업';
-    btn.style.background = '#4285f4';
-    btn.disabled = false;
-    return;
-  }
-
-  // 팝업은 최소화 상태로 열리고, 앱 내 확인 모달 표시
-  setTimeout(() => {
-    try { popup.close(); } catch(e) {}
-  }, 4000);
-
-  // 완료 모달 표시
-  setTimeout(() => {
+  fetch(gasUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ payload: JSON.stringify(payload) })
+  })
+  .then(res => res.json())
+  .then(data => {
     const mc = document.getElementById('modal-container');
     mc.style.display = 'block';
     mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;align-items:center;">
@@ -907,10 +894,17 @@ function saveToGoogleSheets() {
     btn.textContent = '📊 구글백업';
     btn.style.background = '#4285f4';
     btn.disabled = false;
-  }, 2000);
+  })
+  .catch(err => {
+    console.error('백업 오류:', err);
+    alert('백업 실패\n\n' + err.message);
+    btn.textContent = '📊 구글백업';
+    btn.style.background = '#4285f4';
+    btn.disabled = false;
+  });
 }
 
-// ========== 모달: 마크다운 복사 (CSV 함수 전) ==========
+// ========== 모달: 텍스트 복사 (메모앱용) ==========
 function showCopyModal() {
   const site = getSite();
   if (!site) return;
@@ -918,163 +912,196 @@ function showCopyModal() {
   const subtotal = site.workers.reduce((a, w) => a + calcW(w).total, 0) + site.extras.reduce((s, e) => s + (e.amount || 0), 0);
   const tax = site.taxRate ? Math.round(subtotal * site.taxRate) : 0;
   const afterTax = subtotal - tax;
+  const dateStr = [site.startDate, site.endDate].filter(Boolean).join(' ~ ');
 
-  let md = `# ${site.name || '현장'}\n\n`;
-  if (site.startDate || site.endDate) {
-    md += `**기간:** ${[site.startDate, site.endDate].filter(Boolean).join(' ~ ')}\n\n`;
-  }
-  md += `## 인원 현황\n\n`;
+  let txt = '';
+  txt += `[ ${site.name || '현장'} ]\n`;
+  if (dateStr) txt += `${dateStr} / ${site.siteType}\n`;
+  txt += `\n`;
 
   site.workers.forEach(w => {
     const c = calcW(w);
-    md += `- **${w.name || '-'} (${w.grade})**: 임금 ${fmt(c.labor)} (${fmt(w.unitPrice)}×${w.days}일) + 식대 ${fmt(c.meal + c.extraMeals)} (${fmt(w.mealPrice || 12000)}×${w.mealDays}일) = ${fmt(c.total)}\n`;
+    txt += `${w.name || '-'} (${w.grade})\n`;
+    txt += `  단가 ${fmt(w.unitPrice)}원 × ${w.days}일 = ${fmt(c.labor)}원\n`;
+    txt += `  식대 ${fmt(w.mealPrice || 12000)}원 × ${w.mealDays}일 = ${fmt(c.meal)}원\n`;
+    if (c.extraMeals > 0) {
+      const extras = (w.meals || []).filter(m => m.amount);
+      extras.forEach(m => {
+        txt += `  추가식대 ${m.label ? m.label + ' ' : ''}${fmt(m.amount)}원\n`;
+      });
+    }
+    txt += `  합계 ${fmt(c.total)}원\n`;
+    txt += `\n`;
   });
 
-  if (site.extras.filter(e => e.amount).length > 0) {
-    md += `\n## 기타\n\n`;
-    site.extras.filter(e => e.amount).forEach(e => {
-      md += `- ${e.label}: ${fmt(e.amount)}\n`;
+  const extras = site.extras.filter(e => e.amount);
+  if (extras.length > 0) {
+    txt += `기타\n`;
+    extras.forEach(e => {
+      txt += `  ${e.label || '-'} ${fmt(e.amount)}원\n`;
     });
+    txt += `\n`;
   }
 
-  md += `\n## 최종 계산\n\n`;
-  md += `- **소계:** ${fmt(subtotal)}\n`;
+  txt += `──────────────\n`;
+  txt += `총합  ${fmt(subtotal)}원\n`;
   if (site.taxRate > 0) {
-    md += `- **세금 (${(site.taxRate * 100).toFixed(1)}%):** -${fmt(tax)}\n`;
-    md += `- **실수령액:** ${fmt(afterTax)}\n`;
+    txt += `세금 (${(site.taxRate * 100).toFixed(1)}%)  -${fmt(tax)}원\n`;
+    txt += `실수령액  ${fmt(afterTax)}원\n`;
   }
 
   const mc = document.getElementById('modal-container');
   mc.style.display = 'block';
   mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
     <div class="modal">
-      <p class="modal-title">계산결과 복사</p>
-      <textarea style="width:100%;height:300px;border:1px solid #e8e4dc;border-radius:10px;padding:12px;font-family:monospace;font-size:13px;resize:none;white-space:pre-wrap;word-wrap:break-word;">${md}</textarea>
-
-```
-  <button class="btn-orange" onclick="let ta=document.querySelector('textarea');ta.select();document.execCommand('copy');alert('복사되었습니다!');" style="width:100%;margin-top:12px;font-size:16px;">📋 복사하기</button>
-  <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
-</div>
-```
-
+      <p class="modal-title">텍스트 복사</p>
+      <textarea id="copy-textarea" style="width:100%;height:300px;border:1px solid #e8e4dc;border-radius:10px;padding:12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;line-height:1.8;resize:none;white-space:pre-wrap;word-wrap:break-word;color:#1a1a1a;">${txt}</textarea>
+      <button class="btn-orange" id="btn-do-copy" style="width:100%;margin-top:12px;font-size:16px;">📋 복사하기</button>
+      <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
+    </div>
   </div>`;
 
-document.getElementById(‘btn-close-modal’).addEventListener(‘click’, () => {
-mc.style.display = ‘none’;
-});
+  document.getElementById('btn-do-copy').addEventListener('click', () => {
+    const ta = document.getElementById('copy-textarea');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(ta.value).then(() => {
+        document.getElementById('btn-do-copy').textContent = '✓ 복사됨!';
+        setTimeout(() => { document.getElementById('btn-do-copy').textContent = '📋 복사하기'; }, 2000);
+      }).catch(() => {
+        ta.select();
+        document.execCommand('copy');
+        document.getElementById('btn-do-copy').textContent = '✓ 복사됨!';
+        setTimeout(() => { document.getElementById('btn-do-copy').textContent = '📋 복사하기'; }, 2000);
+      });
+    } else {
+      ta.select();
+      document.execCommand('copy');
+      document.getElementById('btn-do-copy').textContent = '✓ 복사됨!';
+      setTimeout(() => { document.getElementById('btn-do-copy').textContent = '📋 복사하기'; }, 2000);
+    }
+  });
+
+  document.getElementById('btn-close-modal').addEventListener('click', () => {
+    mc.style.display = 'none';
+  });
 }
 
 // ========== 모달: 이미지 공유 ==========
 function showShareModal() {
-const site = getSite();
-if (!site) return;
+  const site = getSite();
+  if (!site) return;
 
-const wt = site.workers.reduce((a, w) => {
-const c = calcW(w);
-return { labor: a.labor + c.labor, meal: a.meal + c.meal + c.extraMeals, sub: a.sub + c.total };
-}, { labor: 0, meal: 0, sub: 0 });
+  const wt = site.workers.reduce((a, w) => {
+    const c = calcW(w);
+    return { labor: a.labor + c.labor, meal: a.meal + c.meal + c.extraMeals, sub: a.sub + c.total };
+  }, { labor: 0, meal: 0, sub: 0 });
 
-const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
-const grand = wt.sub + et;
-const dateStr = [site.startDate, site.endDate].filter(Boolean).join(’ ~ ’);
+  const et = site.extras.reduce((s, e) => s + (e.amount || 0), 0);
+  const grand = wt.sub + et;
+  const dateStr = [site.startDate, site.endDate].filter(Boolean).join(' ~ ');
 
-let rows = ‘’;
-site.workers.forEach(w => {
-const c = calcW(w);
-rows += `<tr> <td style="text-align:center;">${w.name || '-'}</td> <td style="text-align:right;">${c.days}일</td> <td style="text-align:right;">${fmt(w.unitPrice)}</td> <td style="text-align:right;">${fmt((w.mealPrice || 12000) * w.mealDays)}</td> <td style="text-align:right;">${fmt(c.total)}</td> </tr>`;
-});
-site.extras.filter(e => e.label || e.amount).forEach(e => {
-rows += `<tr><td colspan="4" style="text-align:center;">${e.label}</td><td style="text-align:right;">${fmt(e.amount)}</td></tr>`;
-});
+  let rows = '';
+  site.workers.forEach(w => {
+    const c = calcW(w);
+    rows += `<tr>
+      <td style="text-align:center;">${w.name || '-'}</td>
+      <td style="text-align:right;">${c.days}일</td>
+      <td style="text-align:right;">${fmt(w.unitPrice)}</td>
+      <td style="text-align:right;">${fmt((w.mealPrice || 12000) * w.mealDays)}</td>
+      <td style="text-align:right;">${fmt(c.total)}</td>
+    </tr>`;
+  });
+  site.extras.filter(e => e.label || e.amount).forEach(e => {
+    rows += `<tr><td colspan="4" style="text-align:center;">${e.label}</td><td style="text-align:right;">${fmt(e.amount)}</td></tr>`;
+  });
 
-const mc = document.getElementById(‘modal-container’);
-mc.style.display = ‘block’;
-mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
-<div class="modal">
-<p class="modal-title">이미지로 공유</p>
-<div class="print-preview" id="print-area">
-<div class="print-head">${site.name || ‘현장’}</div>
-<div class="print-sub">${dateStr || ‘’}</div>
-<table class="print-table">
-<thead><tr>
-<th style="width:18%;text-align:center;">성명</th>
-<th style="width:20%;text-align:right;">시공일수</th>
-<th style="width:18%;text-align:right;">단가</th>
-<th style="width:16%;text-align:right;">식대</th>
-<th style="width:28%;text-align:right;">합계</th>
-</tr></thead>
-<tbody>${rows}</tbody>
-<tfoot><tr class="print-total-row">
-<td colspan="2" style="font-size:15px;font-weight:700;">임금 총액</td>
-<td colspan="3" style="text-align:right;font-size:18px;font-weight:800;color:#d97706;">${fmt(grand)} 원</td>
-</tr></tfoot>
-</table>
-<div style="margin-top:14px;font-size:14px;color:#666;font-weight:600;">임금 ${fmt(wt.labor)} · 식대 ${fmt(wt.meal)}</div>
-</div>
-<button class="btn-orange" id="btn-capture" style="width:100%;margin-top:12px;font-size:16px;">이미지 저장</button>
-<button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
-</div>
-
+  const mc = document.getElementById('modal-container');
+  mc.style.display = 'block';
+  mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;">
+    <div class="modal">
+      <p class="modal-title">이미지로 공유</p>
+      <div class="print-preview" id="print-area">
+        <div class="print-head">${site.name || '현장'}</div>
+        <div class="print-sub">${dateStr || ''}</div>
+        <table class="print-table">
+          <thead><tr>
+            <th style="width:18%;text-align:center;">성명</th>
+            <th style="width:20%;text-align:right;">시공일수</th>
+            <th style="width:18%;text-align:right;">단가</th>
+            <th style="width:16%;text-align:right;">식대</th>
+            <th style="width:28%;text-align:right;">합계</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr class="print-total-row">
+            <td colspan="2" style="font-size:15px;font-weight:700;">임금 총액</td>
+            <td colspan="3" style="text-align:right;font-size:18px;font-weight:800;color:#d97706;">${fmt(grand)} 원</td>
+          </tr></tfoot>
+        </table>
+        <div style="margin-top:14px;font-size:14px;color:#666;font-weight:600;">임금 ${fmt(wt.labor)} · 식대 ${fmt(wt.meal)}</div>
+      </div>
+      <button class="btn-orange" id="btn-capture" style="width:100%;margin-top:12px;font-size:16px;">이미지 저장</button>
+      <button class="btn-ghost" id="btn-close-modal" style="width:100%;margin-top:8px;font-size:16px;">닫기</button>
+    </div>
   </div>`;
 
-document.getElementById(‘btn-close-modal’).addEventListener(‘click’, () => {
-mc.style.display = ‘none’;
-});
+  document.getElementById('btn-close-modal').addEventListener('click', () => {
+    mc.style.display = 'none';
+  });
 
-document.getElementById(‘btn-capture’).addEventListener(‘click’, () => {
-const fileName = `${site.name || '데쓰라'}_${site.startDate || '시작일'}-${site.endDate || '종료일'}`;
-html2canvas(document.getElementById(‘print-area’), { scale: 2, backgroundColor: ‘#ffffff’ }).then(canvas => {
-canvas.toBlob(blob => {
-if (!blob) return;
-const url = URL.createObjectURL(blob);
-const a = document.createElement(‘a’);
-a.href = url;
-a.download = `${fileName}.png`;
-a.click();
-URL.revokeObjectURL(url);
-const btn = document.getElementById(‘btn-capture’);
-if (btn) {
-btn.textContent = ‘저장 완료!’;
-setTimeout(() => {
-if (btn) btn.textContent = ‘이미지 저장’;
-}, 2000);
-}
-}, ‘image/png’);
-});
-});
+  document.getElementById('btn-capture').addEventListener('click', () => {
+    const fileName = `${site.name || '데쓰라'}_${site.startDate || '시작일'}-${site.endDate || '종료일'}`;
+    html2canvas(document.getElementById('print-area'), { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+      canvas.toBlob(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileName}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        const btn = document.getElementById('btn-capture');
+        if (btn) {
+          btn.textContent = '저장 완료!';
+          setTimeout(() => {
+            if (btn) btn.textContent = '이미지 저장';
+          }, 2000);
+        }
+      }, 'image/png');
+    });
+  });
 }
 
 // ========== 메인 렌더 함수 ==========
 function render() {
-activeTab === ‘calc’ ? renderCalc() : renderSites();
-updateFloatingButton();
+  activeTab === 'calc' ? renderCalc() : renderSites();
+  updateFloatingButton();
 }
 
 function updateFloatingButton() {
-const saveBtn = document.getElementById(‘floating-save-btn’);
-if (saveBtn) {
-saveBtn.onclick = () => {
-const site = getSite();
-if (!site) return;
-saveSites();
-saveBtn.textContent = ‘✓’;
-saveBtn.style.background = ‘#059669’;
-setTimeout(() => {
-saveBtn.textContent = ‘💾’;
-saveBtn.style.background = ‘#16a34a’;
-}, 1500);
-};
-}
+  const saveBtn = document.getElementById('floating-save-btn');
+  if (saveBtn) {
+    saveBtn.onclick = () => {
+      const site = getSite();
+      if (!site) return;
+      saveSites();
+      saveBtn.textContent = '✓';
+      saveBtn.style.background = '#059669';
+      setTimeout(() => {
+        saveBtn.textContent = '💾';
+        saveBtn.style.background = '#16a34a';
+      }, 1500);
+    };
+  }
 }
 
 // ========== 이벤트 리스너 ==========
-document.addEventListener(‘click’, e => {
-const tab = e.target.dataset.tab;
-if (tab) switchTab(tab);
-if (e.target.id === ‘btn-new-calc’) {
-newSite();
-switchTab(‘calc’);
-}
+document.addEventListener('click', e => {
+  const tab = e.target.dataset.tab;
+  if (tab) switchTab(tab);
+  if (e.target.id === 'btn-new-calc') {
+    newSite();
+    switchTab('calc');
+  }
 });
 
 // ========== 초기화 ==========
@@ -1083,6 +1110,5 @@ loadSites();
 // 바로 계산 탭으로 전환
 render();
 </script>
-
 </body>
 </html>
