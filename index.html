@@ -865,32 +865,17 @@ function saveToGoogleSheets() {
   btn.textContent = '저장 중...';
   btn.disabled = true;
 
-  // ★ fetch + CORS: GitHub Pages(https://)에서 열면 CORS 정상 작동.
-  // Apps Script 배포 설정: "액세스 권한 - 모든 사용자" 필수.
+  // ★ no-cors POST: Apps Script는 CORS 헤더를 반환하지 않아 fetch 응답을 읽을 수 없음.
+  // no-cors로 요청 전송만 하고 (opaque response), 2초 후 완료 모달 표시.
   const gasUrl = `https://script.google.com/macros/s/${GAS_DEPLOYMENT_ID}/exec`;
 
   fetch(gasUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    mode: 'no-cors',
     body: new URLSearchParams({ payload: JSON.stringify(payload) })
   })
-  .then(res => res.json())
-  .then(data => {
-    const mc = document.getElementById('modal-container');
-    mc.style.display = 'block';
-    mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;align-items:center;">
-      <div class="modal" style="border-radius:20px;margin:20px;">
-        <div style="text-align:center;padding:10px 0 20px;">
-          <div style="font-size:52px;margin-bottom:12px;">✅</div>
-          <p style="font-size:18px;font-weight:800;color:#111;margin-bottom:6px;">구글시트 백업 완료</p>
-          <p style="font-size:14px;color:#aaa;">데이터가 스프레드시트에 저장되었습니다.</p>
-        </div>
-        <button class="btn-orange" id="btn-backup-confirm" style="width:100%;font-size:16px;padding:14px;">확인</button>
-      </div>
-    </div>`;
-    document.getElementById('btn-backup-confirm').addEventListener('click', () => {
-      mc.style.display = 'none';
-    });
+  .then(() => {
+    showBackupDoneModal();
     btn.textContent = '📊 구글백업';
     btn.style.background = '#4285f4';
     btn.disabled = false;
@@ -901,6 +886,24 @@ function saveToGoogleSheets() {
     btn.textContent = '📊 구글백업';
     btn.style.background = '#4285f4';
     btn.disabled = false;
+  });
+}
+
+function showBackupDoneModal() {
+  const mc = document.getElementById('modal-container');
+  mc.style.display = 'block';
+  mc.innerHTML = `<div class="modal-overlay" style="min-height:100vh;align-items:center;">
+    <div class="modal" style="border-radius:20px;margin:20px;">
+      <div style="text-align:center;padding:10px 0 20px;">
+        <div style="font-size:52px;margin-bottom:12px;">✅</div>
+        <p style="font-size:18px;font-weight:800;color:#111;margin-bottom:6px;">구글시트 백업 완료</p>
+        <p style="font-size:14px;color:#aaa;">데이터가 스프레드시트에 저장되었습니다.</p>
+      </div>
+      <button class="btn-orange" id="btn-backup-confirm" style="width:100%;font-size:16px;padding:14px;">확인</button>
+    </div>
+  </div>`;
+  document.getElementById('btn-backup-confirm').addEventListener('click', () => {
+    mc.style.display = 'none';
   });
 }
 
