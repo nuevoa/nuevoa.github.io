@@ -1,0 +1,28 @@
+{
+  "id": "mnwz2kj1bzyvz",
+  "name": "커밋",
+  "siteType": "아파트",
+  "manager": "",
+  "startDate": "2026-04-06",
+  "endDate": "2026-04-13",
+  "workers": [
+    {
+      "id": "mnwz2kj1i17kb",
+      "name": "김정현",
+      "grade": "반장",
+      "unitPrice": 420000,
+      "days": 6,
+      "mealDays": 6,
+      "mealPrice": 12000,
+      "meals": []
+    }
+  ],
+  "extras": [
+    {
+      "id": "mnwz2kj1r8civ",
+      "label": "",
+      "amount": 0
+    }
+  ],
+  "taxRate": 0
+}
